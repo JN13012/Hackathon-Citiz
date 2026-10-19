@@ -1,0 +1,17 @@
+.git
+.agents
+.aws
+.codex
+.venv
+venv
+.env
+.env.*
+!.env.example
+.vscode
+.idea
+**/__pycache__
+**/*.py[cod]
+**/.ipynb_checkpoints
+**/.pytest_cache
+**/.ruff_cache
+data

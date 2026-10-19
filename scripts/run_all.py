@@ -16,7 +16,7 @@ STEPS = [
     ("Rôle 4 - stations_partagees (silver)",          ["optim/build_offre_partagee.py"]),
     ("Rôle 4 - projections (silver)",                 ["optim/build_projections.py"]),
     ("Rôle 4 - couts (silver)",                       ["optim/build_couts.py"]),
-    # ("Rôle 1 - gold_offre, gold_candidates",        ["scripts/build_gold.py"]),
+    ("Rôle 1 - gold_offre, gold_candidates",        ["scripts/build_gold.py"]),
     # ("Rôle 2 - isochrones, O1, O2, couverture",     ["geo/build_isochrones.py"]),
     # ("Rôle 3 - features, modèle, scores",           ["model/train.py"]),
     # ("Rôle 4 - optimiseur",                         ["optim/optimise.py"]),

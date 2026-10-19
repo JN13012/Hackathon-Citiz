@@ -1,0 +1,9 @@
+services:
+  pipeline:
+    build: .
+    init: true
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    volumes:
+      - type: bind
+        source: ./data
+        target: /app/data
