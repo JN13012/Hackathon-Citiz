@@ -12,3 +12,4 @@ osmnx
 lightgbm
 shap
 pulp
+openpyxl

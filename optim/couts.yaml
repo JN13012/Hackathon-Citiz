@@ -1,20 +1,86 @@
-# Gabarit des coûts par type d'équipement.
-# Le sujet ne donne AUCUN montant : chaque valeur doit être sourcée (voir SOURCES.md)
-# ou marquée "hypothèse". Tant qu'un montant est null, il est à renseigner (Rôle 4).
+# Coûts par type d'équipement (€ HT). Validé et converti en table silver par optim/build_couts.py.
+# Le sujet ne donne AUCUN montant : chaque valeur est sourcée (url, voir SOURCES.md) ou marquée "hypothèse".
+#   unite         : EUR/<quantité>[/an] ; "/an" = exploitation, sinon investissement
+#                   quantité : véhicule ou vélo (x vehicules_par_station), place (x places_par_station),
+#                   station ou arrêt (x 1)
+#   min / max     : bornes du test de sensibilité de l'optimiseur
+#   duree_vie_ans : amortissement linéaire des investissements
+#   inclus_dans   : montant déjà compté dans un autre poste (pas de double compte)
+#   option        : poste ajouté seulement à la variante <équipement>_<option> (ex. station_citiz_electrique)
+#   aide: true    : subvention, montant négatif (min = aide la plus forte)
+# Limite : euros courants de l'année indiquée (2012 à 2024), sans conversion en euros constants.
 devise: EUR
 
+# Taille d'un nouvel équipement (hypothèses tirées des flux GBFS France, octobre 2026)
+dimensionnement:
+  station_citiz: {vehicules_par_station: 1, places_par_station: 2, source: hypothèse,
+                  note: "médianes des stations Citiz France : 1 véhicule, 2 places"}
+  arret_bus: {vehicules_par_station: 1, places_par_station: 1, source: hypothèse, note: "sans objet : coûts par arrêt"}
+  station_velo: {vehicules_par_station: 10, places_par_station: 15, source: hypothèse,
+                 note: "médiane GBFS France : 15 places ; 10 vélos retenus"}
+
 station_citiz:
-  - {poste: vehicule,           montant: null, unite: "EUR/véhicule", source: null}
-  - {poste: assurance,          montant: null, unite: "EUR/an",       source: null}
-  - {poste: amenagement_place,  montant: null, unite: "EUR/place",    source: null}
-  - {poste: entretien,          montant: null, unite: "EUR/an",       source: null}
+  - {poste: vehicule, montant: 35000, min: 25000, max: 40000, unite: "EUR/véhicule", duree_vie_ans: 6,
+     source: "Grand Périgueux, délibération DD2024-045 (autopartage Perivoit)", annee: 2024,
+     url: "https://grandperigueux.fr/fileadmin/medias/Publications/Deliberations/2024/Conseil_du_30_mai_2024/DD2024-045_PERIMOUV__SERVICE_AUTOPARTAGE_PERIVOIT.pdf",
+     note: "durée de vie 6 ans = hypothèse"}
+  - {poste: boitier_telematique, montant: 4000, min: 3000, max: 4000, unite: "EUR/véhicule", duree_vie_ans: 6,
+     source: "Pôle métropolitain du Genevois français, convention de déploiement Citiz CS2023-03.2", annee: 2023,
+     url: "https://genevoisfrancais.org/wp-content/uploads/CS2023_03.2-MAJ-CONVENTION-DEPLOIMENT-AUTOPARTAGE_annexe-1.pdf"}
+  - {poste: habillage_vehicule, montant: 3000, min: 1500, max: 3000, unite: "EUR/véhicule", duree_vie_ans: 6,
+     source: "Grand Périgueux, DD2024-045", annee: 2024,
+     url: "https://grandperigueux.fr/fileadmin/medias/Publications/Deliberations/2024/Conseil_du_30_mai_2024/DD2024-045_PERIMOUV__SERVICE_AUTOPARTAGE_PERIVOIT.pdf"}
+  - {poste: amenagement_place, montant: 6000, min: 4000, max: 8000, unite: "EUR/station", duree_vie_ans: 10,
+     source: "Grand Périgueux, DD2024-045 (ajout d'une station sur la plateforme)", annee: 2024,
+     url: "https://grandperigueux.fr/fileadmin/medias/Publications/Deliberations/2024/Conseil_du_30_mai_2024/DD2024-045_PERIMOUV__SERVICE_AUTOPARTAGE_PERIVOIT.pdf",
+     note: "chiffré par station dans la source, pas par place"}
+  - {poste: entretien, montant: 2000, min: 1000, max: 4000, unite: "EUR/station/an",
+     source: "Grand Périgueux, DD2024-045 (surcoût d'exploitation d'une station supplémentaire)", annee: 2024,
+     url: "https://grandperigueux.fr/fileadmin/medias/Publications/Deliberations/2024/Conseil_du_30_mai_2024/DD2024-045_PERIMOUV__SERVICE_AUTOPARTAGE_PERIVOIT.pdf"}
+  - {poste: assurance, inclus_dans: entretien, unite: "EUR/an", source: hypothèse,
+     note: "supposée comprise dans le surcoût d'exploitation de la source ; à confirmer avec Citiz"}
+  # Variante électrique (EDA : stations « électriques » aux gares, P+R, mairies, là où une borne existe)
+  - {poste: borne_recharge, option: electrique, montant: 5000, min: 2900, max: 18333, unite: "EUR/station", duree_vie_ans: 10,
+     source: "HelloPro, prix d'une borne 7,4-22 kW (1 900-4 200 €) et de son installation (1 000-3 000 €) (source commerciale)", annee: 2024,
+     url: "https://conseils.hellopro.fr/combien-coute-une-borne-de-recharge-pour-vehicules-electriques-1249.html",
+     note: "max = borne 22/24 kW sur voirie à Roannais Agglomération (ARA), 22 000 € TTC aides déduites, soit 18 333 € HT : https://www.riorges.fr/images/deliberations/DCM_2022_69_Conv_bornes_IRVE.pdf ; durée de vie = hypothèse"}
+  - {poste: aide_advenir, option: electrique, aide: true, montant: -1500, min: -1900, max: -1000, unite: "EUR/station", duree_vie_ans: 10,
+     source: "Prime ADVENIR, voirie publique : 30 % du coût HT, plafond 1 000 à 1 900 € HT par point de recharge (tarifs 2025, TotalEnergies)", annee: 2025,
+     url: "https://www.totalenergies.fr/particuliers/recharge-voiture-electrique/la-prime-advenir",
+     note: "30 % x 5 000 € = 1 500 € ; barème revalorisé au 1/04/2026 (1 000 à 9 000 € HT selon la puissance, https://www.isiohm.fr/prime-advenir) ; à confirmer sur advenir.mobi avant usage"}
 
 arret_bus:
-  - {poste: mobilier,                montant: null, unite: "EUR/arrêt", source: null}
-  - {poste: accessibilite,           montant: null, unite: "EUR/arrêt", source: null}
-  - {poste: surcout_exploitation,    montant: null, unite: "EUR/an",    source: null}
+  - {poste: mobilier, montant: 3500, min: 1500, max: 8000, unite: "EUR/arrêt", duree_vie_ans: 15,
+     source: "HelloPro, guide d'achat abribus (source commerciale)", annee: 2024,
+     url: "https://conseils.hellopro.fr/quel-fabricant-d-abri-bus-choisir-1461.html",
+     note: "abri voyageurs ; durée de vie = hypothèse"}
+  - {poste: accessibilite, montant: 8750, min: 5500, max: 13700, unite: "EUR/arrêt", duree_vie_ans: 20,
+     source: "Commune de Beyne-Heusay (BE), tableau de bord : aménagement d'arrêts bus PMR", annee: 2023,
+     url: "https://beyne-heusay.be/sites/default/files/documents/news/Tableau-de-bord%20.pdf",
+     note: "chiffre belge, année non indiquée (2023 retenue) ; durée de vie = hypothèse"}
+  - {poste: surcout_exploitation, montant: 500, min: 200, max: 1000, unite: "EUR/arrêt/an", source: hypothèse,
+     note: "entretien et nettoyage ; arrêt ajouté sur une ligne existante, sans km de service en plus"}
 
 station_velo:
-  - {poste: station_et_bornettes, montant: null, unite: "EUR/station", source: null}
-  - {poste: velos,                montant: null, unite: "EUR/vélo",    source: null}
-  - {poste: maintenance,          montant: null, unite: "EUR/an",      source: null}
+  - {poste: station_et_bornettes, inclus_dans: velos, unite: "EUR/station",
+     source: "Manuel OBIS, synthèse EPOMM", url: "https://epomm.eu/sites/default/files/eupdates/1210_bikesharing_fr.pdf",
+     note: "la source donne un coût par vélo qui comprend la station"}
+  - {poste: velos, montant: 2750, min: 2500, max: 3000, unite: "EUR/vélo", duree_vie_ans: 8,
+     source: "Manuel OBIS (projet européen), synthèse EPOMM : infrastructure et mise en œuvre par vélo", annee: 2012,
+     url: "https://epomm.eu/sites/default/files/eupdates/1210_bikesharing_fr.pdf",
+     note: "inclut la station et les bornettes ; durée de vie 8 ans = hypothèse"}
+  - {poste: maintenance, montant: 2000, min: 1500, max: 2500, unite: "EUR/vélo/an",
+     source: "Manuel OBIS, synthèse EPOMM : frais d'exploitation par vélo et par an", annee: 2012,
+     url: "https://epomm.eu/sites/default/files/eupdates/1210_bikesharing_fr.pdf",
+     note: "cohérent avec l'enquête GART (2 000 à 3 000 €/vélo/an tout compris, Banque des Territoires)"}
+
+# Recettes d'une station Citiz : tarifs publics des flux GBFS (system_pricing_plans), lus par build_couts.py.
+# Tarif de référence par réseau = formule sans abonnement (ou « grand public ») la moins chère, petite catégorie.
+# Tarifs TTC (particuliers) ramenés en HT avec la TVA, pour être comparables aux coûts.
+recettes:
+  station_citiz:
+    locations_par_vehicule_par_jour: {valeur: 1, min: 0.5, max: 2, source: hypothèse,
+                                      note: "à remplacer par le relevé de disponibilité (collecte/collect.py, EDA)"}
+    duree_location_h: {valeur: 3, min: 2, max: 5, source: hypothèse}
+    km_par_location: {valeur: 30, min: 20, max: 60, source: hypothèse}
+    tva: {valeur: 0.20, source: "Code général des impôts, taux normal de TVA", url: "https://www.impots.gouv.fr/professionnel/questions/quels-sont-les-taux-de-tva-en-vigueur-en-france-et-dans-lunion-europeenne"}
