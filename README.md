@@ -54,6 +54,49 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
+## Exécution avec Docker
+
+Prérequis : Docker et Docker Compose v2 installés, avec le moteur Docker démarré
+(Docker Desktop sous Windows/macOS). Les commandes suivantes se lancent à la racine
+du dépôt ; aucune installation locale de Python n'est nécessaire.
+
+Construire l'image, puis lancer le pipeline :
+
+```bash
+docker compose build
+docker compose run --rm pipeline
+```
+
+L'image utilise Python 3.15 sur Debian Trixie et installe les bibliothèques de `requirements.txt`,
+ainsi que `libgomp1` pour LightGBM. Le conteneur exécute
+`python scripts/run_all.py`, puis s'arrête. À ce stade, seule la construction de la
+table `arrets` est active dans le pipeline ; les autres étapes seront ajoutées par
+l'équipe. Le téléchargement des sources nécessite un accès Internet.
+
+Le dossier local `data/` est monté dans `/app/data` : les données téléchargées et les
+résultats restent disponibles dans `data/bronze/`, `data/silver/` et `data/gold/`,
+même après suppression du conteneur. Les données, `.venv`, `.git` et les fichiers
+`.env` ne sont pas copiés dans l'image.
+
+Pour lancer un autre script ou vérifier les dépendances sans télécharger de données :
+
+```bash
+docker compose run --rm pipeline python scripts/compter_stations_citiz.py
+docker compose run --rm pipeline python scripts/build_arrets.py --help
+docker compose run --rm pipeline python -m pip check
+```
+
+Le conteneur utilise par défaut l'utilisateur `1000:1000`. Sous Linux/WSL, si votre
+UID ou GID est différent, adaptez l'utilisateur pour pouvoir écrire dans `data/` :
+
+```bash
+LOCAL_UID=$(id -u) LOCAL_GID=$(id -g) docker compose run --rm pipeline
+```
+
+Après une modification du code ou de `requirements.txt`, relancez
+`docker compose build`. Les versions des dépendances ne sont pas encore figées :
+deux constructions à des dates différentes peuvent installer des versions différentes.
+
 ## Exécution
 
 ```bash
