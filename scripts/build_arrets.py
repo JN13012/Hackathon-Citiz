@@ -16,13 +16,34 @@ ROOT = Path(__file__).resolve().parent.parent
 BRONZE = ROOT / "data" / "bronze" / "gtfs"
 SILVER = ROOT / "data" / "silver"
 
-# Territoire D1 : Occitanie (Toulouse Métropole, Grand Albigeois, Grand Cahors)
+# Territoire : Auvergne-Rhône-Alpes (grande ville : Lyon) - choix d'équipe du 19/10
 # nom du réseau -> identifiant du jeu de données sur data.gouv.fr
 NETWORKS = {
-    "tisseo": "tisseo-offre-de-transport-gtfs",
-    "lio": "reseau-lio-occitanie",
-    "grand_albigeois": "offre-de-transports-du-grand-albigeois-gtfs",
-    "grand_cahors": "donnees-gtfs-du-reseau-de-transports-public-du-grand-cahors",
+    # Lyon et sa métropole
+    "tcl_lyon": "horaires-theoriques-du-reseau-transports-en-commun-lyonnais",
+    # Grenoble et Isère
+    "tag_grenoble": "horaires-theoriques-du-reseau-tag",
+    "bastille_grenoble": "horaires-theoriques-du-telepherique-de-la-bastille",
+    "pays_voironnais": "horaires-theoriques-du-reseau-transport-du-pays-voironnais",
+    # Saint-Étienne, Roanne, Loire
+    "stas_saint_etienne": "horaires-du-reseau-stas",
+    "star_roanne": "star-horaires-theoriques-et-temps-reel-du-reseau-de-transport-urbain-de-roannais-agglomeration",
+    # Clermont-Ferrand, Vichy, Le Puy
+    "t2c_clermont": "syndicat-mixte-des-transports-en-commun-de-lagglomeration-clermontoise-smtc-ac-reseau-t2c-gtfs-gtfs-rt",
+    "mobivie_vichy": "mobivie-reseau-urbain-vichy-communaute",
+    "velay_le_puy": "fichier-gtfs-des-transports-urbains-de-la-communaute-dagglomeration-du-puy-en-velay",
+    # Savoie, Haute-Savoie, Ain, Drôme
+    "synchro_chambery": "arrets-et-horaires-theoriques-bus-temps-reel",
+    "sibra_annecy": "offre-de-transports-sibra-a-annecy-gtfs",
+    "tac_annemasse": "offre-de-transports-reseau-tac-annemasse-agglo",
+    "rubis_bourg": "rubis-grand-bourg-mobilites-offre-de-transport-theorique-et-temps-reel",
+    "citea_valence": "ce-jeu-de-donnees-contient-la-liste-des-arrets-des-horaires-et-des-parcours-theoriques-du-reseau-de-transport-urbain-et-interurbain-de-vrm",
+    # Cars de la Région (interurbain), départements trouvés sur transport.data.gouv.fr
+    "cars_savoie": "reseau-interurbain-cars-region-savoie-73",
+    "cars_allier": "reseau-interurbain-cars-region-allier-03",
+    "cars_ardeche": "reseau-interurbain-cars-region-ardeche-07",
+    "cars_haute_loire": "reseau-interurbain-cars-region-haute-loire-43",
+    "cars_cantal": "reseau-interurbain-cars-region-cantal-15",
 }
 
 CRS_LAMBERT93 = 2154
@@ -58,7 +79,7 @@ def normalize(name):
 
 # ---------------------------------------------------------------- téléchargement
 
-EXCLUDED_WORDS = ("gtfs-rt", "gtfsrt", "gtfs_rt", "netex", "trip_updates", "vehicle_positions")
+EXCLUDED_WORDS = ("fichiers txt", "gtfs-rt", "gtfsrt", "gtfs_rt", "netex", "trip_updates", "vehicle_positions")
 
 
 def resolve_gtfs_urls(slug):
@@ -333,15 +354,28 @@ def main():
 
     wanted = datetime.strptime(args.date, "%Y-%m-%d").date() if args.date else None
     sources = []  # (réseau, étiquette du fichier, chemin)
+    echecs = []
     if args.gtfs:
         for kv in args.gtfs:
             n, p = kv.split("=", 1)
             sources.append((n, n, Path(p)))
     else:
         for n, slug in NETWORKS.items():
-            sources += [(n, label, path) for label, path in download_network(n, slug, args.refresh)]
+            try:  # un réseau en panne ne doit pas bloquer les autres
+                sources += [(n, label, path) for label, path in download_network(n, slug, args.refresh)]
+            except Exception as exc:
+                echecs.append(n)
+                print(f"[{n}] IGNORÉ : {str(exc)[:150]}")
 
-    frames = [stops_from_gtfs(reseau, p, wanted, label) for reseau, label, p in sources]
+    frames = []
+    for reseau, label, p in sources:
+        try:
+            frames.append(stops_from_gtfs(reseau, p, wanted, label))
+        except Exception as exc:
+            echecs.append(label)
+            print(f"[{label}] IGNORÉ : {str(exc)[:150]}")
+    if echecs:
+        print(f"\nRéseaux ignorés ({len(echecs)}) : {', '.join(echecs)}\n")
     allstops = pd.concat(frames, ignore_index=True)
     n_brut = len(allstops)
 
