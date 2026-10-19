@@ -1,24 +1,3 @@
-"""Rôle 1 (Data engineer) : construit la table silver `arrets`.
-
-Une ligne = un arrêt physique unique.
-Colonnes : arret_id, nom, mode, nb_passages_jour, reseau, geometry (Lambert 93).
-
-Étapes (cf. plan de projet, Lot 1) :
-  1. télécharge le GTFS de chaque réseau du territoire (bronze)
-  2. garde les points d'arrêt réels (location_type vide ou 0)
-  3. retrouve le mode de chaque arrêt grâce à routes.txt
-  4. compte les passages d'un mardi normal entre 6 h et 21 h
-  5. projette en Lambert 93 (EPSG:2154)
-  6. fusionne les doublons : même nom (sans accents ni majuscules) à moins de 50 m
-  7. filtre sur le territoire (si un fichier de contours est fourni)
-  8. écrit data/silver/arrets.parquet et un rapport de contrôle qualité
-
-Usage :
-  python scripts/build_arrets.py
-  python scripts/build_arrets.py --contours data/silver/contours.parquet
-  python scripts/build_arrets.py --date 2026-11-10
-  python scripts/build_arrets.py --gtfs tisseo=chemin/tisseo.zip --gtfs lio=chemin/lio.zip
-"""
 import argparse
 import hashlib
 import re
@@ -32,7 +11,6 @@ import numpy as np
 import pandas as pd
 import requests
 from scipy.spatial import cKDTree
-from sklearn.cluster import DBSCAN
 
 ROOT = Path(__file__).resolve().parent.parent
 BRONZE = ROOT / "data" / "bronze" / "gtfs"
@@ -80,36 +58,66 @@ def normalize(name):
 
 # ---------------------------------------------------------------- téléchargement
 
-def resolve_gtfs_url(slug):
-    """Cherche dans l'API data.gouv.fr la ressource GTFS (hors temps réel) la plus récente."""
+EXCLUDED_WORDS = ("gtfs-rt", "gtfsrt", "gtfs_rt", "netex", "trip_updates", "vehicle_positions")
+
+
+def resolve_gtfs_urls(slug):
+    """Cherche dans l'API data.gouv.fr les fichiers GTFS statiques d'un jeu de données.
+
+    Un réseau peut publier plusieurs GTFS (ex. Grand Albigeois : urbain, périurbain, navettes) :
+    on les retourne tous, en gardant la version la plus récente de chaque fichier.
+    Retourne une liste [(titre, url)]."""
     meta = requests.get(f"https://www.data.gouv.fr/api/1/datasets/{slug}/", timeout=60).json()
-    cands = []
+    best = {}
     for r in meta.get("resources", []):
         fmt = (r.get("format") or "").lower()
-        title = (r.get("title") or "").lower()
+        title = r.get("title") or ""
+        text = f"{title} {r.get('description') or ''}".lower()
         url = r.get("url") or ""
-        if any(k in (title + url.lower()) for k in ("gtfs-rt", "gtfsrt", "netex", "temps réel", "temps reel")):
+        if r.get("type") == "documentation" or fmt in ("pdf", "csv", "json", "gtfs-rt", "netex"):
             continue
-        if fmt == "gtfs" or (url.lower().endswith(".zip") and "gtfs" in (title + url.lower())):
-            cands.append((r.get("last_modified") or "", url))
-    if not cands:
+        if any(w in f"{text} {url.lower()}" for w in EXCLUDED_WORDS):
+            continue  # temps réel, NeTEx...
+        if not (fmt in ("gtfs", "zip") or "gtfs" in text):  # certains réseaux déclarent "zip" ou "octet-stream"
+            continue
+        modified = r.get("last_modified") or ""
+        if title.lower() not in best or modified > best[title.lower()][0]:
+            best[title.lower()] = (modified, title, url)
+    if not best:
         raise RuntimeError(f"Aucune ressource GTFS trouvée pour {slug}")
-    return sorted(cands)[-1][1]
+    return sorted((t, u) for _, t, u in best.values())
 
 
-def download_gtfs(name, slug, refresh=False):
+def download_one(label, url, refresh=False):
     BRONZE.mkdir(parents=True, exist_ok=True)
-    dest = BRONZE / f"{name}.zip"
+    dest = BRONZE / f"{label}.zip"
     if dest.exists() and not refresh:
-        return dest
-    url = resolve_gtfs_url(slug)
-    print(f"[{name}] téléchargement {url}")
+        if zipfile.is_zipfile(dest):
+            print(f"[{label}] déjà téléchargé : {dest.name}")
+            return dest
+        print(f"[{label}] fichier incomplet ou corrompu, nouveau téléchargement")
+    print(f"[{label}] téléchargement {url.split('?')[0]}")  # sans la clé d'API éventuelle
+    tmp = dest.with_suffix(".part")  # on n'écrit le .zip qu'une fois le téléchargement terminé
     with requests.get(url, stream=True, timeout=600) as r:
         r.raise_for_status()
-        with open(dest, "wb") as f:
+        with open(tmp, "wb") as f:
             for chunk in r.iter_content(1 << 20):
                 f.write(chunk)
+    tmp.replace(dest)
+    print(f"[{label}] téléchargé ({dest.stat().st_size / 1e6:.1f} Mo)")
     return dest
+
+
+def download_network(name, slug, refresh=False):
+    """Télécharge tous les GTFS d'un réseau. Retourne [(étiquette, chemin)]."""
+    resources = resolve_gtfs_urls(slug)
+    out = []
+    for i, (title, url) in enumerate(resources, 1):
+        label = name if len(resources) == 1 else f"{name}_{i}"
+        if len(resources) > 1:
+            print(f"[{name}] fichier {i}/{len(resources)} : {title}")
+        out.append((label, download_one(label, url, refresh)))
+    return out
 
 
 # ---------------------------------------------------------------- lecture GTFS
@@ -178,8 +186,9 @@ def active_services(calendar, calendar_dates, d):
     return active
 
 
-def stops_from_gtfs(name, zip_path, wanted_date=None):
+def stops_from_gtfs(name, zip_path, wanted_date=None, label=None):
     """Retourne un DataFrame : stop_id, nom, lat, lon, mode, nb_passages_jour, reseau."""
+    label = label or name
     with zipfile.ZipFile(zip_path) as zf:
         stops = read_gtfs_table(zf, "stops.txt",
                                 {"stop_id", "stop_name", "stop_lat", "stop_lon", "location_type"})
@@ -200,7 +209,7 @@ def stops_from_gtfs(name, zip_path, wanted_date=None):
     stops = stops[(stops.lat != 0) | (stops.lon != 0)]
 
     service_date = pick_service_date(calendar, calendar_dates, trips, wanted_date)
-    print(f"[{name}] {len(stops)} arrêts, jour de référence : {service_date} ({DAYS[service_date.weekday()]})")
+    print(f"[{label}] {len(stops)} arrêts, jour de référence : {service_date} ({DAYS[service_date.weekday()]})")
     active = active_services(calendar, calendar_dates, service_date)
     active_trips = set(trips.loc[trips.service_id.isin(active), "trip_id"])
 
@@ -231,6 +240,27 @@ def stops_from_gtfs(name, zip_path, wanted_date=None):
 
 # ---------------------------------------------------------------- dédoublonnage
 
+def connected_labels(xy, radius):
+    """Regroupe les points reliés de proche en proche par des distances <= radius.
+
+    Équivaut à DBSCAN(eps=radius, min_samples=1), sans dépendre de scikit-learn."""
+    n = len(xy)
+    parent = list(range(n))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for i, j in cKDTree(xy).query_pairs(radius):
+        ri, rj = find(i), find(j)
+        if ri != rj:
+            parent[max(ri, rj)] = min(ri, rj)
+    roots = np.array([find(i) for i in range(n)])
+    return np.unique(roots, return_inverse=True)[1]
+
+
 def dedupe(df):
     """Fusionne les arrêts de même nom normalisé situés à moins de 50 m (en Lambert 93)."""
     df = df.reset_index(drop=True)
@@ -243,7 +273,7 @@ def dedupe(df):
             labels[pos] = nxt
             nxt += 1
             continue
-        cl = DBSCAN(eps=DEDUP_RADIUS_M, min_samples=1).fit_predict(df.loc[pos, ["x", "y"]].to_numpy())
+        cl = connected_labels(df.loc[pos, ["x", "y"]].to_numpy(), DEDUP_RADIUS_M)
         labels[pos] = cl + nxt
         nxt += cl.max() + 1
     df["cluster"] = labels
@@ -302,12 +332,16 @@ def main():
     args = ap.parse_args()
 
     wanted = datetime.strptime(args.date, "%Y-%m-%d").date() if args.date else None
+    sources = []  # (réseau, étiquette du fichier, chemin)
     if args.gtfs:
-        sources = {kv.split("=", 1)[0]: Path(kv.split("=", 1)[1]) for kv in args.gtfs}
+        for kv in args.gtfs:
+            n, p = kv.split("=", 1)
+            sources.append((n, n, Path(p)))
     else:
-        sources = {n: download_gtfs(n, slug, args.refresh) for n, slug in NETWORKS.items()}
+        for n, slug in NETWORKS.items():
+            sources += [(n, label, path) for label, path in download_network(n, slug, args.refresh)]
 
-    frames = [stops_from_gtfs(n, p, wanted) for n, p in sources.items()]
+    frames = [stops_from_gtfs(reseau, p, wanted, label) for reseau, label, p in sources]
     allstops = pd.concat(frames, ignore_index=True)
     n_brut = len(allstops)
 
