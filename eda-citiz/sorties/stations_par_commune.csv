@@ -1,0 +1,300 @@
+region,commune,type_territoire,stations,population
+Auvergne-Rhône-Alpes,Lyon,1 très grande ville,146,519127.0
+Auvergne-Rhône-Alpes,Grenoble,2 métropole,129,156140.0
+Grand Est,Strasbourg,2 métropole,129,293771.0
+Provence-Alpes-Côte d'Azur,Marseille,1 très grande ville,91,886040.0
+Occitanie,Toulouse,1 très grande ville,90,514819.0
+Nouvelle-Aquitaine,Bordeaux,2 métropole,73,267991.0
+Bretagne,Rennes,2 métropole,59,230890.0
+Hauts-de-France,Lille,2 métropole,39,238246.0
+Auvergne-Rhône-Alpes,Chambéry,3 ville moyenne,34,59964.0
+Bourgogne-Franche-Comté,Besançon,2 métropole,27,118489.0
+Nouvelle-Aquitaine,La Rochelle,3 ville moyenne,25,79851.0
+Pays de la Loire,Angers,2 métropole,25,159022.0
+Auvergne-Rhône-Alpes,Villeurbanne,2 métropole,22,163684.0
+Bourgogne-Franche-Comté,Dijon,2 métropole,21,161830.0
+Pays de la Loire,Nantes,2 métropole,20,327734.0
+Auvergne-Rhône-Alpes,Saint-Étienne,2 métropole,19,173136.0
+Auvergne-Rhône-Alpes,Annecy,2 métropole,19,132117.0
+Nouvelle-Aquitaine,Poitiers,3 ville moyenne,18,89916.0
+Grand Est,Metz,2 métropole,16,122572.0
+Centre-Val de Loire,Tours,2 métropole,15,139259.0
+Normandie,Caen,2 métropole,14,109400.0
+Auvergne-Rhône-Alpes,Valence,3 ville moyenne,13,64458.0
+Grand Est,Schiltigheim,3 ville moyenne,13,34708.0
+Grand Est,Mulhouse,2 métropole,12,104978.0
+Grand Est,Nancy,2 métropole,11,103671.0
+Grand Est,Reims,2 métropole,11,177674.0
+Auvergne-Rhône-Alpes,Aix-les-Bains,3 ville moyenne,9,32406.0
+Auvergne-Rhône-Alpes,Saint-Égrève,3 ville moyenne,8,17986.0
+Grand Est,Illkirch-Graffenstaden,3 ville moyenne,7,27872.0
+Auvergne-Rhône-Alpes,Saint-Martin-d'Hères,3 ville moyenne,7,37695.0
+Auvergne-Rhône-Alpes,Meylan,3 ville moyenne,7,18770.0
+Nouvelle-Aquitaine,Talence,3 ville moyenne,7,46338.0
+Grand Est,Colmar,3 ville moyenne,7,66970.0
+Hauts-de-France,Arras,3 ville moyenne,6,42875.0
+Provence-Alpes-Côte d'Azur,Avignon,3 ville moyenne,6,92188.0
+Auvergne-Rhône-Alpes,Gières,4 petite commune / rural,6,7376.0
+Hauts-de-France,Lambersart,3 ville moyenne,6,27090.0
+Auvergne-Rhône-Alpes,Vienne,3 ville moyenne,5,31778.0
+Auvergne-Rhône-Alpes,Échirolles,3 ville moyenne,5,37491.0
+Auvergne-Rhône-Alpes,Annemasse,3 ville moyenne,5,37628.0
+Auvergne-Rhône-Alpes,Saint-Julien-en-Genevois,3 ville moyenne,5,16222.0
+Auvergne-Rhône-Alpes,Villefranche-sur-Saône,3 ville moyenne,5,36172.0
+Grand Est,Ostwald,3 ville moyenne,5,13946.0
+Auvergne-Rhône-Alpes,Voiron,3 ville moyenne,5,21847.0
+Occitanie,Cahors,3 ville moyenne,5,20050.0
+Île-de-France,Suresnes,3 ville moyenne,4,48956.0
+Nouvelle-Aquitaine,Mérignac,3 ville moyenne,4,78090.0
+Nouvelle-Aquitaine,Bègles,3 ville moyenne,4,31831.0
+Auvergne-Rhône-Alpes,La Tronche,4 petite commune / rural,4,6424.0
+Bretagne,Saint-Jacques-de-la-Lande,3 ville moyenne,4,13800.0
+Auvergne-Rhône-Alpes,Barberaz,4 petite commune / rural,4,5306.0
+Hauts-de-France,La Madeleine,3 ville moyenne,4,21790.0
+Auvergne-Rhône-Alpes,La Motte-Servolex,3 ville moyenne,4,12067.0
+Auvergne-Rhône-Alpes,Fontaine,3 ville moyenne,4,22020.0
+Auvergne-Rhône-Alpes,Albertville,3 ville moyenne,3,19978.0
+Occitanie,Millau,3 ville moyenne,3,22044.0
+Île-de-France,Alfortville,3 ville moyenne,3,45531.0
+Occitanie,Blagnac,3 ville moyenne,3,27604.0
+Île-de-France,Montreuil,2 métropole,3,111934.0
+Nouvelle-Aquitaine,Bruges,3 ville moyenne,3,20020.0
+Nouvelle-Aquitaine,Le Bouscat,3 ville moyenne,3,25081.0
+Occitanie,Castanet-Tolosan,3 ville moyenne,3,15317.0
+Hauts-de-France,Roubaix,3 ville moyenne,3,98286.0
+Nouvelle-Aquitaine,Bayonne,3 ville moyenne,3,54306.0
+Auvergne-Rhône-Alpes,Eybens,3 ville moyenne,3,10493.0
+Grand Est,Sélestat,3 ville moyenne,3,19589.0
+Grand Est,Saint-Louis,3 ville moyenne,3,22805.0
+Centre-Val de Loire,Chartres,3 ville moyenne,3,38324.0
+Grand Est,Bischheim,3 ville moyenne,3,18558.0
+Auvergne-Rhône-Alpes,Le Pont-de-Claix,3 ville moyenne,3,10956.0
+Auvergne-Rhône-Alpes,La Roche-sur-Foron,3 ville moyenne,3,11348.0
+Auvergne-Rhône-Alpes,Montbonnot-Saint-Martin,4 petite commune / rural,3,5698.0
+Centre-Val de Loire,Blois,3 ville moyenne,3,47219.0
+Bourgogne-Franche-Comté,Nevers,3 ville moyenne,3,33085.0
+Auvergne-Rhône-Alpes,Romans-sur-Isère,3 ville moyenne,3,33464.0
+Auvergne-Rhône-Alpes,Seyssinet-Pariset,3 ville moyenne,3,11739.0
+Auvergne-Rhône-Alpes,Vaulx-en-Velin,3 ville moyenne,3,53069.0
+Auvergne-Rhône-Alpes,Vénissieux,3 ville moyenne,3,65502.0
+Occitanie,Tournefeuille,3 ville moyenne,3,30168.0
+Auvergne-Rhône-Alpes,Bourgoin-Jallieu,3 ville moyenne,3,30151.0
+Occitanie,Ramonville-Saint-Agne,3 ville moyenne,3,15158.0
+Occitanie,Tarbes,3 ville moyenne,3,44399.0
+Auvergne-Rhône-Alpes,Belleville-en-Beaujolais,3 ville moyenne,3,14016.0
+Auvergne-Rhône-Alpes,Archamps,4 petite commune / rural,2,2375.0
+Auvergne-Rhône-Alpes,Barby,4 petite commune / rural,2,3772.0
+Auvergne-Rhône-Alpes,Bonneville,3 ville moyenne,2,13335.0
+Auvergne-Rhône-Alpes,Saint-Genis-Laval,3 ville moyenne,2,21212.0
+Pays de la Loire,Orvault,3 ville moyenne,2,28534.0
+Occitanie,Saint-Alban,4 petite commune / rural,2,6534.0
+Auvergne-Rhône-Alpes,Bron,3 ville moyenne,2,42982.0
+Auvergne-Rhône-Alpes,Bourg-en-Bresse,3 ville moyenne,2,42372.0
+Auvergne-Rhône-Alpes,Poisat,4 petite commune / rural,2,2173.0
+Auvergne-Rhône-Alpes,Pélussin,4 petite commune / rural,2,3727.0
+Auvergne-Rhône-Alpes,Reignier-Ésery,4 petite commune / rural,2,8464.0
+Bretagne,Cesson-Sévigné,3 ville moyenne,2,18761.0
+Auvergne-Rhône-Alpes,Montmélian,4 petite commune / rural,2,4024.0
+Auvergne-Rhône-Alpes,Oullins-Pierre-Bénite,3 ville moyenne,2,38168.0
+Auvergne-Rhône-Alpes,Voreppe,4 petite commune / rural,2,9922.0
+Auvergne-Rhône-Alpes,Varces-Allières-et-Risset,4 petite commune / rural,2,8542.0
+Auvergne-Rhône-Alpes,Tassin-la-Demi-Lune,3 ville moyenne,2,23200.0
+Auvergne-Rhône-Alpes,Thonon-les-Bains,3 ville moyenne,2,37928.0
+Auvergne-Rhône-Alpes,Veyrier-du-Lac,4 petite commune / rural,2,2320.0
+Auvergne-Rhône-Alpes,Sassenage,3 ville moyenne,2,11646.0
+Auvergne-Rhône-Alpes,Saint-Pierre-en-Faucigny,4 petite commune / rural,2,7865.0
+Auvergne-Rhône-Alpes,Sallanches,3 ville moyenne,2,17319.0
+Auvergne-Rhône-Alpes,Seyssins,4 petite commune / rural,2,8092.0
+Auvergne-Rhône-Alpes,Saint-Pierre-de-Chartreuse,4 petite commune / rural,2,1003.0
+Grand Est,Bar-le-Duc,3 ville moyenne,2,14607.0
+Centre-Val de Loire,La Riche,3 ville moyenne,2,10487.0
+Nouvelle-Aquitaine,Biarritz,3 ville moyenne,2,26206.0
+Hauts-de-France,Wasquehal,3 ville moyenne,2,20726.0
+Occitanie,Albi,3 ville moyenne,2,51290.0
+Nouvelle-Aquitaine,Puilboreau,4 petite commune / rural,2,6765.0
+Nouvelle-Aquitaine,Langon,4 petite commune / rural,2,7674.0
+Nouvelle-Aquitaine,Anglet,3 ville moyenne,2,43271.0
+Occitanie,Balma,3 ville moyenne,2,17772.0
+Occitanie,Auzeville-Tolosane,4 petite commune / rural,2,4665.0
+Auvergne-Rhône-Alpes,Craponne-sur-Arzon,4 petite commune / rural,2,1998.0
+Occitanie,Portet-sur-Garonne,4 petite commune / rural,2,9782.0
+Auvergne-Rhône-Alpes,Ambilly,4 petite commune / rural,2,6355.0
+Auvergne-Rhône-Alpes,Epagny Metz-Tessy,4 petite commune / rural,2,8925.0
+Auvergne-Rhône-Alpes,Cluses,3 ville moyenne,2,17795.0
+Nouvelle-Aquitaine,Lagord,4 petite commune / rural,2,7802.0
+Grand Est,Saverne,3 ville moyenne,2,11460.0
+Grand Est,Souffelweyersheim,4 petite commune / rural,2,8239.0
+Hauts-de-France,Croix,3 ville moyenne,2,20566.0
+Auvergne-Rhône-Alpes,Ferney-Voltaire,3 ville moyenne,2,12094.0
+Hauts-de-France,Marcq-en-Barœul,3 ville moyenne,2,40184.0
+Hauts-de-France,Mons-en-Barœul,3 ville moyenne,2,21105.0
+Hauts-de-France,Loos,3 ville moyenne,2,22567.0
+Grand Est,Rixheim,3 ville moyenne,2,14380.0
+Grand Est,Haguenau,3 ville moyenne,2,36391.0
+Grand Est,Hœnheim,3 ville moyenne,2,11742.0
+Grand Est,Montigny-lès-Metz,3 ville moyenne,2,21718.0
+Auvergne-Rhône-Alpes,Moirans,4 petite commune / rural,2,7818.0
+Grand Est,Erstein,3 ville moyenne,2,10790.0
+Auvergne-Rhône-Alpes,Le Bourget-du-Lac,4 petite commune / rural,2,5216.0
+Auvergne-Rhône-Alpes,Le Puy-en-Velay,3 ville moyenne,2,18540.0
+Grand Est,Châlons-en-Champagne,3 ville moyenne,2,42971.0
+Hauts-de-France,Saint-André-lez-Lille,3 ville moyenne,2,13233.0
+Auvergne-Rhône-Alpes,Neuville-sur-Saône,4 petite commune / rural,1,7812.0
+Auvergne-Rhône-Alpes,Saint-Genis-Pouilly,3 ville moyenne,1,14432.0
+Pays de la Loire,Rezé,3 ville moyenne,1,43556.0
+Pays de la Loire,Beaucouzé,4 petite commune / rural,1,5732.0
+Pays de la Loire,Les Ponts-de-Cé,3 ville moyenne,1,13149.0
+Occitanie,Sévérac d'Aveyron,4 petite commune / rural,1,4026.0
+Pays de la Loire,Avrillé,3 ville moyenne,1,15251.0
+Auvergne-Rhône-Alpes,Bourg-de-Péage,4 petite commune / rural,1,9921.0
+Occitanie,Saint-Affrique,4 petite commune / rural,1,7941.0
+Occitanie,Saint-Jean,3 ville moyenne,1,11261.0
+Auvergne-Rhône-Alpes,Argonay,4 petite commune / rural,1,3807.0
+Auvergne-Rhône-Alpes,Arsac-en-Velay,4 petite commune / rural,1,1219.0
+Auvergne-Rhône-Alpes,Bassens,4 petite commune / rural,1,5175.0
+Auvergne-Rhône-Alpes,Bluffy,4 petite commune / rural,1,395.0
+Auvergne-Rhône-Alpes,Bourg-Argental,4 petite commune / rural,1,2886.0
+Auvergne-Rhône-Alpes,Saint-Germain-au-Mont-d'Or,4 petite commune / rural,1,3124.0
+Auvergne-Rhône-Alpes,Saint-Genis-les-Ollières,4 petite commune / rural,1,5439.0
+Auvergne-Rhône-Alpes,Sevrier,4 petite commune / rural,1,4333.0
+Auvergne-Rhône-Alpes,Sathonay-Camp,4 petite commune / rural,1,7019.0
+Auvergne-Rhône-Alpes,Saint-Jorioz,4 petite commune / rural,1,6390.0
+Auvergne-Rhône-Alpes,Saint-Martin-d'Uriage,4 petite commune / rural,1,5587.0
+Auvergne-Rhône-Alpes,Saint-Paulien,4 petite commune / rural,1,2439.0
+Auvergne-Rhône-Alpes,Valserhône,3 ville moyenne,1,16712.0
+Auvergne-Rhône-Alpes,Villard-de-Lans,4 petite commune / rural,1,4328.0
+Auvergne-Rhône-Alpes,Villard-Bonnot,4 petite commune / rural,1,7509.0
+Auvergne-Rhône-Alpes,Saint-Priest,3 ville moyenne,1,49229.0
+Auvergne-Rhône-Alpes,Sainte-Foy-lès-Lyon,3 ville moyenne,1,21692.0
+Auvergne-Rhône-Alpes,Saint-Pierre-d'Albigny,4 petite commune / rural,1,4217.0
+Auvergne-Rhône-Alpes,Saint-Gervais-les-Bains,4 petite commune / rural,1,5755.0
+Auvergne-Rhône-Alpes,Saint-Jean-d'Arvey,4 petite commune / rural,1,1721.0
+Auvergne-Rhône-Alpes,Saint-Ismier,4 petite commune / rural,1,7165.0
+Grand Est,Bezannes,4 petite commune / rural,1,5039.0
+Grand Est,Benfeld,4 petite commune / rural,1,5973.0
+Grand Est,Barr,4 petite commune / rural,1,7057.0
+Centre-Val de Loire,Saint-Pierre-des-Corps,3 ville moyenne,1,15898.0
+Centre-Val de Loire,Orléans,2 métropole,1,116357.0
+Centre-Val de Loire,Saint-Jean-le-Blanc,4 petite commune / rural,1,9562.0
+Bretagne,Saint-Grégoire,4 petite commune / rural,1,9957.0
+Centre-Val de Loire,Chambray-lès-Tours,3 ville moyenne,1,12720.0
+Bourgogne-Franche-Comté,Salins-les-Bains,4 petite commune / rural,1,2390.0
+Bourgogne-Franche-Comté,Saint-Claude,4 petite commune / rural,1,8386.0
+Bretagne,Saint-Erblon,4 petite commune / rural,1,3651.0
+Bretagne,Chantepie,3 ville moyenne,1,10670.0
+Bourgogne-Franche-Comté,Quetigny,4 petite commune / rural,1,8971.0
+Bourgogne-Franche-Comté,Louhans-Châteaurenaud,4 petite commune / rural,1,6446.0
+Bourgogne-Franche-Comté,Moirans-en-Montagne,4 petite commune / rural,1,2107.0
+Bourgogne-Franche-Comté,Morteau,4 petite commune / rural,1,6953.0
+Auvergne-Rhône-Alpes,Rillieux-la-Pape,3 ville moyenne,1,31389.0
+Auvergne-Rhône-Alpes,Porte-de-Savoie,4 petite commune / rural,1,3974.0
+Auvergne-Rhône-Alpes,Poisy,4 petite commune / rural,1,9291.0
+Bourgogne-Franche-Comté,Lajoux,4 petite commune / rural,1,287.0
+Auvergne-Rhône-Alpes,Saint-Fons,3 ville moyenne,1,19285.0
+Auvergne-Rhône-Alpes,Saint-Chamond,3 ville moyenne,1,35646.0
+Auvergne-Rhône-Alpes,Saint-Alban-Leysse,4 petite commune / rural,1,6734.0
+Auvergne-Rhône-Alpes,Rumilly,3 ville moyenne,1,16442.0
+Auvergne-Rhône-Alpes,Passy,3 ville moyenne,1,10856.0
+Auvergne-Rhône-Alpes,Pontcharra,4 petite commune / rural,1,7350.0
+Auvergne-Rhône-Alpes,Thônes,4 petite commune / rural,1,6654.0
+Auvergne-Rhône-Alpes,Ville-la-Grand,4 petite commune / rural,1,9514.0
+Bourgogne-Franche-Comté,Autun,3 ville moyenne,1,13172.0
+Auvergne-Rhône-Alpes,Villefontaine,3 ville moyenne,1,19445.0
+Bourgogne-Franche-Comté,Hauts de Bienne,4 petite commune / rural,1,5032.0
+Grand Est,Eckbolsheim,4 petite commune / rural,1,7157.0
+Grand Est,Riedisheim,3 ville moyenne,1,12200.0
+Grand Est,Reichstett,4 petite commune / rural,1,4732.0
+Grand Est,Obernai,3 ville moyenne,1,12587.0
+Grand Est,Oberhausbergen,4 petite commune / rural,1,5857.0
+Grand Est,Mundolsheim,4 petite commune / rural,1,5322.0
+Grand Est,Muttersholtz,4 petite commune / rural,1,2290.0
+Grand Est,Morhange,4 petite commune / rural,1,3308.0
+Grand Est,Sarrebourg,3 ville moyenne,1,12170.0
+Grand Est,Vendenheim,4 petite commune / rural,1,6137.0
+Grand Est,Villé,4 petite commune / rural,1,1799.0
+Grand Est,Wolfisheim,4 petite commune / rural,1,4217.0
+Grand Est,Épinal,3 ville moyenne,1,32251.0
+Grand Est,Schirmeck,4 petite commune / rural,1,2056.0
+Grand Est,Valmont,4 petite commune / rural,1,3041.0
+Grand Est,Vandœuvre-lès-Nancy,3 ville moyenne,1,29942.0
+Grand Est,Rosheim,4 petite commune / rural,1,5457.0
+Hauts-de-France,Fréthun,4 petite commune / rural,1,1403.0
+Auvergne-Rhône-Alpes,Meyzieu,3 ville moyenne,1,36687.0
+Auvergne-Rhône-Alpes,Massiac,4 petite commune / rural,1,1796.0
+Auvergne-Rhône-Alpes,Mens,4 petite commune / rural,1,1415.0
+Grand Est,Laxou,3 ville moyenne,1,14771.0
+Grand Est,Les Trois-Domaines,4 petite commune / rural,1,119.0
+Grand Est,Lingolsheim,3 ville moyenne,1,20826.0
+Grand Est,La Wantzenau,4 petite commune / rural,1,5864.0
+Grand Est,Molsheim,4 petite commune / rural,1,9318.0
+Auvergne-Rhône-Alpes,Lavoûte-sur-Loire,4 petite commune / rural,1,805.0
+Auvergne-Rhône-Alpes,Marcy-l'Étoile,4 petite commune / rural,1,3778.0
+Auvergne-Rhône-Alpes,Marnaz,4 petite commune / rural,1,5964.0
+Auvergne-Rhône-Alpes,Lans-en-Vercors,4 petite commune / rural,1,2751.0
+Grand Est,Brumath,3 ville moyenne,1,10499.0
+Grand Est,Châtenois,4 petite commune / rural,1,4294.0
+Grand Est,Bischwiller,3 ville moyenne,1,12242.0
+Hauts-de-France,Ronchin,3 ville moyenne,1,19787.0
+Auvergne-Rhône-Alpes,La Chaise-Dieu,4 petite commune / rural,1,594.0
+Auvergne-Rhône-Alpes,La Mulatière,4 petite commune / rural,1,6534.0
+Auvergne-Rhône-Alpes,La Ravoire,4 petite commune / rural,1,9332.0
+Auvergne-Rhône-Alpes,Jacob-Bellecombette,4 petite commune / rural,1,4499.0
+Auvergne-Rhône-Alpes,Gex,3 ville moyenne,1,13627.0
+Auvergne-Rhône-Alpes,Goncelin,4 petite commune / rural,1,2400.0
+Auvergne-Rhône-Alpes,Guilherand-Granges,3 ville moyenne,1,11235.0
+Auvergne-Rhône-Alpes,Fontanil-Cornillon,4 petite commune / rural,1,3404.0
+Auvergne-Rhône-Alpes,Fleurieu-sur-Saône,4 petite commune / rural,1,1597.0
+Hauts-de-France,Lezennes,4 petite commune / rural,1,2978.0
+Auvergne-Rhône-Alpes,Francheville,3 ville moyenne,1,15604.0
+Hauts-de-France,Desvres,4 petite commune / rural,1,4829.0
+Hauts-de-France,Douai,3 ville moyenne,1,40250.0
+Hauts-de-France,Faches-Thumesnil,3 ville moyenne,1,18619.0
+Normandie,Hérouville-Saint-Clair,3 ville moyenne,1,23470.0
+Nouvelle-Aquitaine,Chauvigny,4 petite commune / rural,1,7007.0
+Nouvelle-Aquitaine,Chasseneuil-du-Poitou,4 petite commune / rural,1,4743.0
+Nouvelle-Aquitaine,Cenon,3 ville moyenne,1,26834.0
+Nouvelle-Aquitaine,Buxerolles,3 ville moyenne,1,10289.0
+Nouvelle-Aquitaine,Aytré,4 petite commune / rural,1,9746.0
+Normandie,Ouistreham,4 petite commune / rural,1,9212.0
+Nouvelle-Aquitaine,Libourne,3 ville moyenne,1,25036.0
+Nouvelle-Aquitaine,La Réole,4 petite commune / rural,1,4487.0
+Nouvelle-Aquitaine,Tarnos,3 ville moyenne,1,12957.0
+Nouvelle-Aquitaine,Périgny,4 petite commune / rural,1,8877.0
+Nouvelle-Aquitaine,Pessac,3 ville moyenne,1,67339.0
+Normandie,Fleury-sur-Orne,4 petite commune / rural,1,5941.0
+Hauts-de-France,Villeneuve-d'Ascq,3 ville moyenne,1,62868.0
+Hauts-de-France,Wambrechies,3 ville moyenne,1,11012.0
+Hauts-de-France,Tourcoing,3 ville moyenne,1,98772.0
+Hauts-de-France,Samer,4 petite commune / rural,1,4704.0
+Auvergne-Rhône-Alpes,Challes-les-Eaux,4 petite commune / rural,1,5630.0
+Auvergne-Rhône-Alpes,Caluire-et-Cuire,3 ville moyenne,1,43597.0
+Occitanie,Belmont-sur-Rance,4 petite commune / rural,1,1001.0
+Occitanie,Beauzelle,4 petite commune / rural,1,8713.0
+Occitanie,Aucamville,4 petite commune / rural,1,9623.0
+Auvergne-Rhône-Alpes,Combloux,4 petite commune / rural,1,2093.0
+Auvergne-Rhône-Alpes,Cognin,4 petite commune / rural,1,6954.0
+Auvergne-Rhône-Alpes,Champagne-au-Mont-d'Or,4 petite commune / rural,1,6311.0
+Auvergne-Rhône-Alpes,Craponne,3 ville moyenne,1,12084.0
+Auvergne-Rhône-Alpes,Couzon-au-Mont-d'Or,4 petite commune / rural,1,2619.0
+Auvergne-Rhône-Alpes,Divonne-les-Bains,3 ville moyenne,1,10464.0
+Auvergne-Rhône-Alpes,Crolles,4 petite commune / rural,1,8609.0
+Auvergne-Rhône-Alpes,Décines-Charpieu,3 ville moyenne,1,29877.0
+Occitanie,Castelnaudary,3 ville moyenne,1,12151.0
+Auvergne-Rhône-Alpes,Châteauneuf-sur-Isère,4 petite commune / rural,1,4281.0
+Auvergne-Rhône-Alpes,Clelles,4 petite commune / rural,1,596.0
+Occitanie,L'Union,3 ville moyenne,1,12638.0
+Occitanie,Colomiers,3 ville moyenne,1,40882.0
+Occitanie,La Cavalerie,4 petite commune / rural,1,2223.0
+Occitanie,La Salvetat-Saint-Gilles,4 petite commune / rural,1,8511.0
+Occitanie,Lourdes,3 ville moyenne,1,13266.0
+Occitanie,Léguevin,4 petite commune / rural,1,9945.0
+Occitanie,Labège,4 petite commune / rural,1,4392.0
+Occitanie,Laurabuc,4 petite commune / rural,1,431.0
+Occitanie,Pins-Justaret,4 petite commune / rural,1,4378.0
+Occitanie,Lévignac,4 petite commune / rural,1,2206.0
+Occitanie,Plaisance-du-Touch,3 ville moyenne,1,21079.0
+Occitanie,Quint-Fonsegrives,4 petite commune / rural,1,6133.0
+Auvergne-Rhône-Alpes,Allègre,4 petite commune / rural,1,922.0
+Auvergne-Rhône-Alpes,Alixan,4 petite commune / rural,1,2729.0
+Île-de-France,Puteaux,3 ville moyenne,1,44002.0
+Auvergne-Rhône-Alpes,Aime-la-Plagne,4 petite commune / rural,1,4385.0

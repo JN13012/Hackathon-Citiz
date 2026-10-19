@@ -1,0 +1,13 @@
+region,1 très grande ville,2 métropole,3 ville moyenne,4 petite commune / rural,total,types_couverts,moyennes+rural OK
+Auvergne-Rhône-Alpes,146,189,188,101,624,4,True
+Bourgogne-Franche-Comté,0,48,4,8,60,3,False
+Bretagne,0,59,7,2,68,3,False
+Centre-Val de Loire,0,16,10,1,27,3,False
+Grand Est,0,179,66,21,266,3,True
+Hauts-de-France,0,39,37,4,80,3,False
+Normandie,0,14,1,2,17,3,False
+Nouvelle-Aquitaine,0,73,76,11,160,3,True
+Occitanie,90,0,33,19,142,3,True
+Pays de la Loire,0,45,5,1,51,3,False
+Provence-Alpes-Côte d'Azur,91,0,6,0,97,2,False
+Île-de-France,0,3,8,0,11,2,False
