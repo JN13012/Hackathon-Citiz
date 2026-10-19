@@ -1,0 +1,17 @@
+# Données : ne jamais versionner (couches bronze, silver, gold)
+data/bronze/*
+data/silver/*
+data/gold/*
+!data/*/.gitkeep
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Éditeur / système
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

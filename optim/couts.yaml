@@ -1,0 +1,20 @@
+# Gabarit des coûts par type d'équipement.
+# Le sujet ne donne AUCUN montant : chaque valeur doit être sourcée (voir SOURCES.md)
+# ou marquée "hypothèse". Tant qu'un montant est null, il est à renseigner (Rôle 4).
+devise: EUR
+
+station_citiz:
+  - {poste: vehicule,           montant: null, unite: "EUR/véhicule", source: null}
+  - {poste: assurance,          montant: null, unite: "EUR/an",       source: null}
+  - {poste: amenagement_place,  montant: null, unite: "EUR/place",    source: null}
+  - {poste: entretien,          montant: null, unite: "EUR/an",       source: null}
+
+arret_bus:
+  - {poste: mobilier,                montant: null, unite: "EUR/arrêt", source: null}
+  - {poste: accessibilite,           montant: null, unite: "EUR/arrêt", source: null}
+  - {poste: surcout_exploitation,    montant: null, unite: "EUR/an",    source: null}
+
+station_velo:
+  - {poste: station_et_bornettes, montant: null, unite: "EUR/station", source: null}
+  - {poste: velos,                montant: null, unite: "EUR/vélo",    source: null}
+  - {poste: maintenance,          montant: null, unite: "EUR/an",      source: null}

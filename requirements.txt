@@ -1,0 +1,14 @@
+pandas
+numpy
+pyarrow
+geopandas
+shapely
+pyproj
+scipy
+scikit-learn
+requests
+pyyaml
+osmnx
+lightgbm
+shap
+pulp
