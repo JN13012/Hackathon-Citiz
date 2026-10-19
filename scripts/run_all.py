@@ -14,7 +14,7 @@ STEPS = [
     # ("Rôle 2 - réseau piéton et contours (silver)", ["geo/build_reseau.py"]),
     # ("Rôle 3 - carreaux_socio (silver)",            ["model/build_carreaux.py"]),
     # ("Rôle 4 - stations_partagees, couts (silver)", ["optim/build_offre_partagee.py"]),
-    # ("Rôle 1 - gold_offre, gold_candidates",        ["scripts/build_gold.py"]),
+    ("Rôle 1 - gold_offre, gold_candidates",        ["scripts/build_gold.py"]),
     # ("Rôle 2 - isochrones, O1, O2, couverture",     ["geo/build_isochrones.py"]),
     # ("Rôle 3 - features, modèle, scores",           ["model/train.py"]),
     # ("Rôle 4 - optimiseur",                         ["optim/optimise.py"]),
