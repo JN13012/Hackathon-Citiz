@@ -69,9 +69,10 @@ docker compose run --rm pipeline
 
 L'image utilise Python 3.15 sur Debian Trixie et installe les bibliothèques de `requirements.txt`,
 ainsi que `libgomp1` pour LightGBM. Le conteneur exécute
-`python scripts/run_all.py`, puis s'arrête. À ce stade, seule la construction de la
-table `arrets` est active dans le pipeline ; les autres étapes seront ajoutées par
-l'équipe. Le téléchargement des sources nécessite un accès Internet.
+`python scripts/run_all.py`, puis s'arrête. Étapes actives : `arrets` (rôle 1),
+`carreaux_socio` (rôle 3), `stations_partagees`, `projections`, `couts` (rôle 4), puis
+`gold_offre` et `gold_candidates` (rôle 1) ; les étapes géomatique, modèle et optimiseur
+seront ajoutées par l'équipe. Le téléchargement des sources nécessite un accès Internet.
 
 Le dossier local `data/` est monté dans `/app/data` : les données téléchargées et les
 résultats restent disponibles dans `data/bronze/`, `data/silver/` et `data/gold/`,
@@ -102,8 +103,18 @@ deux constructions à des dates différentes peuvent installer des versions diff
 ```bash
 python scripts/compter_stations_citiz.py   # compte stations et véhicules des réseaux Citiz (D1)
 python scripts/run_all.py                  # rejoue la chaîne bronze -> silver -> gold
+python model/build_carreaux.py --help      # Rôle 3 seul : carreaux_socio (INSEE, téléchargé dans data/bronze/insee/)
 python optim/build_offre_partagee.py       # Rôle 4 seul : stations partagées (idem build_projections, build_couts)
 ```
+
+## Dépannage
+
+**`SSL: CERTIFICATE_VERIFY_FAILED` au téléchargement (macOS).** Le Python installé depuis
+python.org n'a pas de certificats racine pour `urllib`. Les scripts utilisent désormais ceux de
+`certifi` (dans `requirements.txt`) : relancez `pip install -r requirements.txt`. Pour corriger
+Python une fois pour toutes : `open "/Applications/Python 3.12/Install Certificates.command"`.
+Derrière un réseau qui inspecte le HTTPS (école, entreprise), installez aussi `pip install truststore`
+pour utiliser le trousseau du système.
 
 ## Points de contrôle
 

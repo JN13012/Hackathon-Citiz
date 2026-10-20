@@ -9,7 +9,7 @@ Conventions : colonnes en `snake_case`, géométries en Lambert 93 (EPSG:2154), 
 | `arrets` | 1 | un arrêt physique unique | `arret_id`, `nom`, `mode`, `nb_passages_jour`, `reseau`, `geometry` | à remplir |
 | `reseau_pieton` | 2 | nœuds et tronçons | nœuds : `noeud_id`, `geometry` · tronçons : `de`, `vers`, `longueur_m` | à remplir |
 | `contours` | 2 | une commune, un EPCI ou un IRIS | `code_insee`, `nom`, `niveau`, `geometry` | à remplir |
-| `carreaux_socio` | 3 | un carreau de 200 m | `id_carreau`, `population`, `menages`, `revenu`, `part_menages_sans_voiture`, `nb_equipements`, `emplois`, `donnee_masquee`, `geometry` (+ colonnes complémentaires, détail ci-dessous) | `emplois` : 381 (communes fusionnées depuis 2021) · `code_iris` : 483 · autres : 0 |
+| `carreaux_socio` | 3 | un carreau de 200 m | `id_carreau`, `population`, `menages`, `revenu`, `part_menages_sans_voiture`, `nb_equipements`, `emplois`, `donnee_masquee`, `geometry` (+ colonnes complémentaires, détail ci-dessous) | `code_iris` : 483 · autres : 0 |
 | `equipements` | 3 | un équipement BPE 2025 géolocalisé | `code_commune`, `typequ`, `domaine`, `geometry` | 0 |
 | `stations_partagees` | 4 | une station physique (Citiz, autopartage, vélo) du territoire | `station_id` (`<system_id>:<id GBFS>`, unique en France), `station_id_gbfs`, `operateur`, `type` (`citiz`, `autopartage`, `velo`), `capacite`, `nb_vehicules`, `commune` (code INSEE), `geometry` ; en plus : `nom_commune`, `nom`, `reseau`, `system_id`, `nb_places_libres`, `en_service`, `station_virtuelle`, `type_stationnement` (GBFS `parking_type`), `electrique_nom` (« électrique » dans le nom : minimum), `date_extraction` | `capacite` vide si absente, 0, < 0 ou > 150 (5 en ARA, dont 3 Citiz à 0) ; `station_virtuelle` vide si le flux ne la donne pas (501) ; `type_stationnement` donné par Citiz seulement (937 vides) ; `nb_vehicules` = relevé instantané |
 | `stations_partagees_france` | 4 | une station Citiz ouverte, toute la France (entraînement du modèle) | mêmes colonnes sans `commune`, `nom_commune` | `capacite` : 8 |
@@ -43,6 +43,7 @@ Conventions : colonnes en `snake_case`, géométries en Lambert 93 (EPSG:2154), 
 |---|---|---|---|
 | `id_carreau` | texte | 0 | Identifiant INSEE du carreau de 200 m (Filosofi 2021) |
 | `code_commune` | texte | 0 | Code INSEE de la commune (la première du territoire si le carreau en touche plusieurs) |
+| `code_commune_actuelle` | texte | 0 | Commune actuelle : celle de l'IRIS qui contient le centre du carreau (corrige les fusions de communes depuis 2021), sinon `code_commune` |
 | `code_iris` | texte | 483 | IRIS contenant le centre du carreau (vide : centre hors des IRIS du territoire) |
 | `multi_communes` | booléen | 0 | Vrai si le carreau touche plusieurs communes |
 | `population` | nombre | 0 | Habitants, ménages fiscaux (Filosofi 2021) |
@@ -57,7 +58,7 @@ Conventions : colonnes en `snake_case`, géométries en Lambert 93 (EPSG:2154), 
 | `nb_equipements` | entier | 0 | Équipements BPE 2025 : services + commerces + enseignement + santé (0 = vrai zéro) |
 | `nb_equipements_tous` | entier | 0 | Tous les équipements BPE 2025 du carreau (0 = vrai zéro) |
 | `nb_equip_services`, `nb_equip_commerces`, `nb_equip_enseignement`, `nb_equip_sante`, `nb_equip_transports`, `nb_equip_sports_culture`, `nb_equip_tourisme` | entier | 0 | Équipements BPE 2025 par domaine (0 = vrai zéro) |
-| `emplois` | nombre | 381 | HYPOTHÈSE : emplois de la commune (recensement 2022) répartis au prorata des équipements, sinon de la population. Vide : commune fusionnée depuis 2021 |
+| `emplois` | nombre | 0 | HYPOTHÈSE : emplois de la commune actuelle (recensement 2022) répartis au prorata des équipements, sinon de la population |
 | `donnee_masquee` | booléen | 0 | Vrai si l'INSEE a estimé les valeurs (carreau de moins de 11 ménages, secret statistique) |
 | `faible_population` | booléen | 0 | Vrai si moins de 20 habitants : à regrouper (O1, vie privée) |
 | `x_centre`, `y_centre` | nombre | 0 | Centre du carreau, Lambert 93 (m) |
@@ -66,9 +67,10 @@ Conventions : colonnes en `snake_case`, géométries en Lambert 93 (EPSG:2154), 
 
 **Contrôles réalisés**
 - Identifiants uniques, tous les carreaux dans le territoire, projection Lambert 93.
-- Population = 94,2 % de la population légale 2023 : Filosofi ne compte pas les personnes vivant en communauté.
+- Population = 93,9 % de la population légale 2023 (Lyon compris) : Filosofi ne compte pas les personnes vivant en communauté.
 - 79,8 % des carreaux, soit 22,3 % des habitants, ont des valeurs estimées par l'INSEE.
-- 32 lignes Filosofi écartées car leur code commune était illisible.
+- 0 ligne Filosofi écartée pour code commune illisible.
+- 22 146 équipements BPE mal géolocalisés (`QUALITE_XY` = M) écartés.
 
 **Hypothèses**
 1. Un carreau sur plusieurs communes est rattaché à la première commune du territoire.

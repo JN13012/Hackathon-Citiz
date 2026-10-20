@@ -64,7 +64,7 @@ Réseaux téléchargés par `scripts/build_arrets.py` (Rôle 1), 19 jeux de donn
 | Contours des IRIS (IGN, service WFS, couche `STATISTICALUNITS.IRIS:contours_iris`) | https://data.geopf.fr/wfs/ows | chargé le 19/10/2026 (rôle 3) |
 | Base permanente des équipements (INSEE, BPE 2025, fichier-détail géolocalisé) | https://www.insee.fr/fr/statistiques/fichier/8217525/BPE25.parquet | chargé le 19/10/2026 (rôle 3) |
 | Emplois au lieu de travail par commune (INSEE, recensement 2022, `P22_EMPLT`) | https://www.insee.fr/fr/statistiques/fichier/8581444/base-cc-emploi-pop-active-2022_csv.zip | chargé le 19/10/2026 (rôle 3) |
-| Populations de référence 2023 (INSEE), contrôle de cohérence | https://www.insee.fr/fr/statistiques/fichier/8680726/ensemble.zip | Filosofi = 94,2 % de la population légale (rôle 3) |
+| Populations de référence 2023 (INSEE), contrôle de cohérence | https://www.insee.fr/fr/statistiques/fichier/8680726/ensemble.zip | Filosofi = 93,9 % de la population légale (rôle 3) |
 | Enquête nationale sur l'autopartage (ADEME, édition la plus récente) | https://www.ademe.fr | à vérifier |
 | Facteur d'émission d'une voiture par km (ADEME, Base Empreinte) | https://base-empreinte.ademe.fr | à relever |
 
