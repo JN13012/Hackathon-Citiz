@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parent.parent
 STEPS = [
     ("Rôle 1 - table arrets (silver)", ["scripts/build_arrets.py"]),
     # ("Rôle 2 - réseau piéton et contours (silver)", ["geo/build_reseau.py"]),
-    # ("Rôle 3 - carreaux_socio (silver)",            ["model/build_carreaux.py"]),
+    ("Rôle 3 - carreaux_socio (silver)",            ["model/build_carreaux.py"]),
     ("Rôle 4 - stations_partagees (silver)",          ["optim/build_offre_partagee.py"]),
     ("Rôle 4 - projections (silver)",                 ["optim/build_projections.py"]),
     ("Rôle 4 - couts (silver)",                       ["optim/build_couts.py"]),
