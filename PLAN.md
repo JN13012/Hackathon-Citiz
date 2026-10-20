@@ -224,7 +224,7 @@ Pas de données dans Git. Clé de jointure : identifiant de carreau INSEE 200 m 
 
 | Donnée | Script | Résultat |
 |---|---|---|
-| Tous les flux GBFS de transport.data.gouv.fr + Citiz `backend.citiz.fr` (18 réseaux) | `optim/build_offre_partagee.py` | `stations_partagees` : 620 Citiz (3 réseaux fusionnés + Citiz Développement), 901 stations vélo, 36 Clem en Auvergne-Rhône-Alpes ; `stations_partagees_france` (1 605 Citiz ouvertes) pour le modèle ; `stations_a_venir` (25 « Ouverture prochaine »). Exclus : free-floating (61 252 zones virtuelles, Getaround) et 2 stations Citiz non publiques (« Véhicules hors-circuit », « DEMOBOX »). |
+| Flux GBFS Citiz de France (`backend.citiz.fr`, 18 réseaux) + autres flux GBFS du territoire (transport.data.gouv.fr) | `optim/build_offre_partagee.py` | `stations_partagees` : 620 Citiz (3 réseaux fusionnés + Citiz Développement), 901 stations vélo, 36 Clem en Auvergne-Rhône-Alpes ; `stations_partagees_france` (1 605 Citiz ouvertes) pour le modèle ; `stations_a_venir` (25 « Ouverture prochaine »). Exclus : free-floating (61 252 zones virtuelles, Getaround) et 2 stations Citiz non publiques (« Véhicules hors-circuit », « DEMOBOX »). |
 | Projections Omphale 2022 (central, basse, haute) | `optim/build_projections.py` | `projections` (12 départements, 2021 → 2030) ; `projections_carreaux` (311 648 carreaux, clé `id_carreau`). |
 | Coûts des 3 équipements | `optim/couts.yaml` → `optim/build_couts.py` | `couts` (14 postes : 11 sourcés, 1 hypothèse, 2 inclus dans un autre poste), dont la variante électrique (borne − ADVENIR) ; `couts_equipements` (bas / central / haut) ; `tarifs_citiz` et `marge_citiz` (recettes GBFS, pessimiste / central / optimiste). |
 

@@ -1,21 +1,25 @@
 """Rôle 4 - table silver `stations_partagees` : stations Citiz, autopartage et vélos en libre-service.
 
-Sources : tous les flux GBFS « vehicles-sharing » de transport.data.gouv.fr (v1, v2, v3)
+Sources : flux GBFS « vehicles-sharing » de transport.data.gouv.fr (v1, v2, v3)
 + flux Citiz publiés directement par backend.citiz.fr (réseaux absents du catalogue).
-Nettoyage national, puis recoupe sur le territoire (optim/territoire.py ou --contours).
+- Citiz : toute la France (le modèle du Rôle 3 apprend sur toutes les stations Citiz).
+- Autres opérateurs : seulement les jeux dont la zone (covered_area) touche le territoire,
+  plus les jeux nationaux ; recoupe spatiale finale sur le territoire (optim/territoire.py ou --contours).
+Le relevé du jour est réutilisé s'il existe (data/bronze/gbfs_cache.json) ; --refresh pour le refaire.
 
 Sorties :
 - data/bronze/gbfs_flux.csv                        état de chaque flux (ok, free-floating, échec…)
 - data/bronze/gbfs_stations_brut.parquet           stations telles que lues
-- data/silver/stations_partagees_france.parquet    national (entraînement du modèle, Rôle 3)
+- data/silver/stations_partagees_france.parquet    stations Citiz de France (entraînement du modèle, Rôle 3)
 - data/silver/stations_partagees.parquet           territoire
 - data/silver/stations_a_venir.parquet             stations annoncées « Ouverture prochaine » (France), hors offre existante
 - data/silver/stations_partagees_qc.txt            rapport qualité
 Le free-floating (pas de station_information, ou zones virtuelles d'opérateurs free-floating)
 est hors périmètre : seulement compté dans le rapport.
-Usage : python optim/build_offre_partagee.py [--contours data/silver/contours.parquet]
+Usage : python optim/build_offre_partagee.py [--contours data/silver/contours.parquet] [--refresh]
 """
 import argparse
+import json
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -31,6 +35,8 @@ import territoire as T
 TDG_API = "https://transport.data.gouv.fr/api/datasets"
 CITIZ_BACKEND = "https://backend.citiz.fr/public/provider/{}/gbfs/v3.0/gbfs.json"
 CITIZ_PROVIDERS = range(1, 41)  # numéros de fournisseur testés (18 actifs en octobre 2026)
+TIMEOUT = 15  # s par requête : un serveur qui ne répond pas est abandonné vite (sans nouvelle tentative)
+CACHE_META = T.BRONZE / "gbfs_cache.json"
 
 TYPE_BY_FORM_FACTOR = {"car": "autopartage", "bicycle": "velo", "cargo_bicycle": "velo",
                        "scooter": "trottinette", "scooter_standing": "trottinette",
@@ -51,12 +57,12 @@ COLUMNS = ["station_id", "station_id_gbfs", "operateur", "type", "capacite", "nb
            "type_stationnement", "electrique_nom", "date_extraction", "geometry"]
 
 
-def get_json(url, attempts=3):
+def get_json(url, attempts=3, timeout=TIMEOUT):
     """Lecture d'un flux, avec nouvelles tentatives sur les réponses invalides (ex. Vélo'v renvoie
     parfois un JSON tronqué). Un serveur qui ne répond pas (timeout) n'est pas relancé."""
     for attempt in range(attempts):
         try:
-            r = requests.get(url, timeout=60)
+            r = requests.get(url, timeout=timeout)
             r.raise_for_status()
             return r.json()
         except (requests.HTTPError, ValueError):
@@ -157,7 +163,7 @@ def citiz_backend_jobs():
     """Réseaux Citiz publiés par backend.citiz.fr (certains manquent sur transport.data.gouv.fr)."""
     def probe(n):
         try:
-            return requests.get(CITIZ_BACKEND.format(n), timeout=30).ok
+            return requests.get(CITIZ_BACKEND.format(n), timeout=TIMEOUT).ok
         except requests.RequestException:
             return False
     with ThreadPoolExecutor(max_workers=10) as pool:
@@ -215,6 +221,21 @@ def clean(df, qc):
     return gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.lon, df.lat), crs=4326).to_crs(T.CRS_LAMBERT93)
 
 
+def download(communes):
+    """Relevé GBFS : Citiz partout, autres opérateurs seulement si leur zone touche le territoire."""
+    codes = T.area_codes(communes)
+    datasets = [d for d in get_json(TDG_API, timeout=120) if d.get("type") == "vehicles-sharing"]
+    kept = [d for d in datasets if "citiz" in d["title"].lower() or T.covers(d.get("covered_area"), codes)]
+    print(f"Jeux GBFS gardés : {len(kept)} / {len(datasets)} (Citiz + zone touchant le territoire + nationaux)")
+    jobs = [(d, r["url"]) for d in kept for r in d.get("resources", [])
+            if (r.get("format") or "").lower() == "gbfs" and r.get("url")]
+    jobs += citiz_backend_jobs()  # après le catalogue : en cas de doublon, l'intitulé du catalogue est gardé
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        results = list(pool.map(lambda job: read_feed(*job), jobs))
+    flux = pd.DataFrame([r for r, _ in results])
+    return flux, pd.DataFrame([row for _, rows in results for row in rows])
+
+
 def summary(gdf):
     return (gdf.groupby("type").agg(stations=("station_id", "size"), reseaux=("reseau", "nunique"),
                                     vehicules=("nb_vehicules", "sum"),
@@ -225,22 +246,24 @@ def summary(gdf):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--contours", help="contour du territoire (table contours du Rôle 2)")
+    ap.add_argument("--refresh", action="store_true", help="refaire le relevé GBFS même s'il date d'aujourd'hui")
     args = ap.parse_args()
 
-    datasets = [d for d in get_json(TDG_API) if d.get("type") == "vehicles-sharing"]
-    jobs = [(d, r["url"]) for d in datasets for r in d.get("resources", [])
-            if (r.get("format") or "").lower() == "gbfs" and r.get("url")]
-    jobs += citiz_backend_jobs()  # après le catalogue : en cas de doublon, l'intitulé du catalogue est gardé
-    with ThreadPoolExecutor(max_workers=16) as pool:
-        results = list(pool.map(lambda job: read_feed(*job), jobs))
-
+    communes = T.load_communes(args.contours)
+    territory = f"{T.NIVEAU}:{','.join(T.CODES)}" if args.contours is None else str(args.contours)
     T.BRONZE.mkdir(parents=True, exist_ok=True)
     T.SILVER.mkdir(parents=True, exist_ok=True)
-    flux = pd.DataFrame([r for r, _ in results])
-    flux.to_csv(T.BRONZE / "gbfs_flux.csv", index=False)
-    raw = pd.DataFrame([row for _, rows in results for row in rows])
-    raw.astype({"capacite": str, "nb_vehicules": str, "nb_places_libres": str,
-                "en_service": str, "station_virtuelle": str}).to_parquet(T.BRONZE / "gbfs_stations_brut.parquet")
+    meta = json.loads(CACHE_META.read_text()) if CACHE_META.exists() else {}
+    if not args.refresh and meta == {"date": date.today().isoformat(), "territoire": territory}:
+        print(f"Relevé GBFS du jour réutilisé ({CACHE_META.name}) ; --refresh pour le refaire")
+        flux = pd.read_csv(T.BRONZE / "gbfs_flux.csv")
+        raw = pd.read_parquet(T.BRONZE / "gbfs_stations_brut.parquet")
+    else:
+        flux, raw = download(communes)
+        flux.to_csv(T.BRONZE / "gbfs_flux.csv", index=False)
+        raw.astype({"capacite": str, "nb_vehicules": str, "nb_places_libres": str,
+                    "en_service": str, "station_virtuelle": str}).to_parquet(T.BRONZE / "gbfs_stations_brut.parquet")
+        CACHE_META.write_text(json.dumps({"date": date.today().isoformat(), "territoire": territory}))
 
     qc = ["Rapport qualité - table stations_partagees", "=" * 44,
           f"Flux lus : {len(flux)}", flux["statut"].str.split(" :").str[0].value_counts().to_string(), ""]
@@ -248,10 +271,9 @@ def main():
     national_cols = [c for c in COLUMNS if c not in ("commune", "nom_commune")]
     france[france["a_venir"]][national_cols].reset_index(drop=True).to_parquet(T.SILVER / "stations_a_venir.parquet")
     france = france[~france["a_venir"]]
-    france[national_cols].to_parquet(T.SILVER / "stations_partagees_france.parquet")
-    qc += ["", "France :", summary(france)]
+    france[france["type"] == "citiz"][national_cols].to_parquet(T.SILVER / "stations_partagees_france.parquet")
+    qc += ["", "Lu (Citiz France + autres opérateurs du territoire et nationaux) :", summary(france)]
 
-    communes = T.load_communes(args.contours)
     terr, n_out = T.clip(france, communes)
     terr = terr[COLUMNS].sort_values(["type", "reseau", "station_id"]).reset_index(drop=True)
     assert terr["station_id"].is_unique, "station_id en double"

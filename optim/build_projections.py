@@ -63,20 +63,22 @@ def load_omphale():
     return proj.reset_index().astype({"pop_depart": "int64", "pop_2030": "int64"})
 
 
-def load_carreaux():
-    """Filosofi 2021 : id du carreau, commune, population ; centre du carreau en Lambert 93."""
+def load_carreaux(deps):
+    """Filosofi 2021 des départements `deps` : id du carreau, commune, population ; centre en Lambert 93.
+    Lecture par blocs : seuls les carreaux du territoire restent en mémoire."""
     path = download(FILOSOFI_URL, T.BRONZE / "filosofi" / "Filosofi2021_carreaux_200m_csv.zip")
     parts = []
     with zipfile.ZipFile(path) as z:
         for name in z.namelist():
             with z.open(name) as f:
-                parts.append(pd.read_csv(f, usecols=["idcar_200m", "lcog_geo", "ind"],
-                                         dtype={"idcar_200m": str, "lcog_geo": str}))
+                for chunk in pd.read_csv(f, usecols=["idcar_200m", "lcog_geo", "ind"], chunksize=500_000,
+                                         dtype={"idcar_200m": str, "lcog_geo": str}):
+                    # carreau à cheval sur plusieurs communes : lcog_geo les concatène, on garde la première
+                    chunk["commune"] = chunk.pop("lcog_geo").str[:5]
+                    chunk["dep"] = T.dep_of(chunk["commune"])
+                    parts.append(chunk[chunk["dep"].isin(deps)])
     df = pd.concat(parts, ignore_index=True).rename(columns={"idcar_200m": "id_carreau",
                                                              "ind": "population_2021"})
-    # carreau à cheval sur plusieurs communes : lcog_geo les concatène, on garde la première
-    df["commune"] = df.pop("lcog_geo").str[:5]
-    df["dep"] = T.dep_of(df["commune"])
     xy = df["id_carreau"].str.extract(IDCAR).astype({0: int, 1: float, 2: float})
     parts = []
     for crs, idx in xy.groupby(0).groups.items():  # 3035 en métropole, CRS locaux pour les DROM
@@ -96,8 +98,7 @@ def main():
     deps = sorted(set(communes["dep"]))
     proj = proj_fr[proj_fr["dep"].isin(deps)].reset_index(drop=True)
 
-    car = load_carreaux()
-    car = car[car["dep"].isin(deps)]  # préfiltre rapide avant la recoupe spatiale
+    car = load_carreaux(deps)
     car, n_out = T.clip(car, communes.drop(columns="nom_commune").assign(nom_commune=None))
     car = car.drop(columns="nom_commune")
     rates = proj.set_index("dep")
