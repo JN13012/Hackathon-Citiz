@@ -6,7 +6,7 @@ Conventions : colonnes en `snake_case`, géométries en Lambert 93 (EPSG:2154), 
 
 | Table | Rôle | Une ligne = | Colonnes | Manquants |
 |---|---|---|---|---|
-| `arrets` | 1 | un arrêt physique unique | `arret_id`, `nom`, `mode`, `nb_passages_jour`, `reseau`, `geometry` | à remplir |
+| `arrets` | 1 | un arrêt physique unique | `arret_id`, `nom`, `mode`, `nb_passages_jour`, `reseau`, `geometry` | aucune valeur manquante ; `nb_passages_jour` = 0 pour 6,8 % des arrêts (pas de service le jour de référence) ; mode « autre » pour 198 arrêts |
 | `reseau_pieton` | 2 | nœuds et tronçons orientés, pilote Grenoble + marge 1 km | nœuds : `noeud_id`, `composante_id`, `dans_territoire`, `dans_zone_marge`, `geometry` · tronçons : `de`, `vers`, `cle`, `longueur_m`, `temps_pieton_s`, tags `*_json`, `geometry` | tags OSM absents = texte JSON `null` ; voir rapport QC |
 | `contours` | 2 | une commune, un EPCI ou un IRIS | `code_insee`, `nom`, `niveau`, `geometry` | à remplir |
 | `carreaux_socio` | 3 | un carreau de 200 m | `id_carreau`, `population`, `menages`, `revenu`, `part_menages_sans_voiture`, `nb_equipements`, `emplois`, `donnee_masquee`, `geometry` (+ colonnes complémentaires, détail ci-dessous) | `code_iris` : 483 · autres : 0 |
@@ -26,8 +26,8 @@ Conventions : colonnes en `snake_case`, géométries en Lambert 93 (EPSG:2154), 
 
 | Table | Rôle | Contenu | Échéance |
 |---|---|---|---|
-| `gold_offre` | 1 | un point par arrêt ou station : type (bus, tram, vélo, trottinette, Citiz), fréquence ou capacité | mardi 10 h 30 |
-| `gold_candidates` | 1 | centroïdes des carreaux peuplés, avec `id_carreau` | mardi 11 h |
+| `gold_offre` | 1 | un point par arrêt ou station : `offre_id`, `source` (`arrets` ou `stations_partagees`), `type` (bus, tram, métro, vélo, Citiz, autopartage…), `nom`, `operateur`, `valeur` (passages/jour pour un arrêt, capacité pour une station), `unite`, `geometry` ; `valeur` vide pour 5 stations sans capacité | mardi 10 h 30 |
+| `gold_candidates` | 1 | centroïdes des carreaux peuplés (312 143), avec `id_carreau`, `population`, `code_commune`, `faible_population`, `part_menages_sans_voiture` | mardi 11 h |
 | `gold_isochrones` | 2 | cible : polygone de 5 min à pied par carreau (`id_carreau`) ; pilote actuel : origines de type `arret` dans Grenoble, dossier dédié `isochrones_grenoble_arrets` ; tampon cartographique de chemins routés | mardi 11 h |
 | `gold_o1` | 2 | pilote Grenoble : options accessibles par habitant, par groupe de carreaux (minimum 20 habitants), dossier `accessibilite_grenoble` | mardi 12 h 30 |
 | `gold_o2` | 2 | pilote Grenoble : population à 5 min de chacun des 303 arrêts/stations, voisins inclus, dossier `accessibilite_grenoble` | mardi 12 h 30 |
