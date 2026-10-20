@@ -2,6 +2,11 @@
 
 Travail réalisé le 20 octobre 2026. Aucun téléchargement GTFS n'a été relancé pour restaurer les données.
 
+Mise à jour géomatique : les graphes piétons des **835 tuiles ARA sont maintenant
+construits et contrôlés indépendamment**, avec marche bidirectionnelle. Voir
+[execution_reseau_ara.md](execution_reseau_ara.md). Le présent document conserve
+les constats de la restauration ; les calculs O1/O2 régionaux restent à réaliser.
+
 ## Ce qui avait été remplacé
 
 Le pipeline avait reçu HTTP 401 pour TCL Lyon, ignoré ce réseau puis écrit `data/silver/arrets.parquet` avec 11 495 arrêts sans filtre IGN, dont 70 hors ARA. `data/gold/gold_offre.parquet` avait été régénéré avec 13 052 offres et aucun métro. Les tables de stations, candidats, projections et coûts avaient également été rejouées ; les effectifs des stations et candidats restaient respectivement 1 557 et 312 143.

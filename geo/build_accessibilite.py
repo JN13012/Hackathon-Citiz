@@ -141,9 +141,12 @@ def population_groups(cells, minimum):
     return gpd.GeoDataFrame(rows, crs=CRS), pd.DataFrame(mapping), fallbacks
 
 
-def route_pairs(network, population, offers, budget_s, snap_population_m, snap_offre_m):
+def route_pairs(network, population, offers, budget_s, snap_population_m, snap_offre_m, *, offer_snaps=None):
     pop_snaps = [network.snap(p, budget_s, snap_population_m) for p in population.geometry]
-    offer_snaps = [network.snap(p, budget_s, snap_offre_m) for p in offers.geometry]
+    if offer_snaps is None:
+        offer_snaps = [network.snap(p, budget_s, snap_offre_m) for p in offers.geometry]
+    elif len(offer_snaps) != len(offers):
+        raise ValueError("Un raccordement par point d'offre est requis")
     radius = budget_s * network.speed_ms
     tree = STRtree(offers.geometry.to_numpy())
     pairs, uncertain = [], []

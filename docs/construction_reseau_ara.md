@@ -9,6 +9,12 @@ transports, ni la population, ni les résultats du pilote de Grenoble.
 les deux sens, avec le même temps de marche.** C'est l'hypothèse de calcul
 demandée, y compris lorsqu'un tag OSM indique une restriction directionnelle.
 
+`geo/run_reseau_ara.py` est le lanceur recommandé : il exécute ce même
+constructeur et libère les objets Python, buffers Arrow et blocs mémoire
+inutilisés avant chaque appel à osmium. Les règles, les tables et leurs
+empreintes de validation restent celles du constructeur. Cette gestion mémoire
+évite de conserver les buffers d'une grosse tuile pendant l'extraction suivante.
+
 ## Utilisation
 
 L'image Docker doit contenir le nouveau code ; `osmium-tool` est déjà déclaré
@@ -21,7 +27,7 @@ docker compose build pipeline
 Essai sur les tuiles contenant les centres de Grenoble et Lyon :
 
 ```bash
-docker compose run --rm pipeline python geo/build_reseau_ara.py \
+docker compose run --rm pipeline python geo/run_reseau_ara.py \
   --tuiles x91_y645 x84_y651 \
   --output-dir data/silver/reseau_ara_bidirectionnel
 ```
@@ -30,12 +36,13 @@ Construction des **835 tuiles planifiées**, en conservant les tuiles voisines
 sans origine et en réutilisant les sorties de l'essai :
 
 ```bash
-docker compose run --rm pipeline python geo/build_reseau_ara.py \
+docker compose run --rm pipeline python geo/run_reseau_ara.py \
   --output-dir data/silver/reseau_ara_bidirectionnel --reprendre
 ```
 
-`--lot 16` groupe les extractions pour limiter les relectures des archives ;
-une valeur de 1 à 32 est acceptée. Le graphe est construit et exporté tuile par
+`--lot 1` est la valeur par défaut pour limiter la mémoire des extractions.
+Une valeur de 1 à 32 est acceptée ; un essai régional avec 16 extractions
+simultanées a été interrompu par le système (SIGKILL). Le graphe est construit et exporté tuile par
 tuile. La mémoire et la durée dépendent de la densité OSM : commencer par
 l'essai, sans lancer plusieurs constructeurs sur le même dossier.
 
@@ -80,6 +87,12 @@ de code ou de plan, choisir un nouveau dossier plutôt que mélanger les version
     même coût et exports relus, puis publication du
     dossier complet de la tuile. Un échec conserve les dossiers déjà validés.
 
+`load_tile_graph(dossier_tuile)` reconstruit le graphe depuis les GeoParquet.
+Le constructeur vérifie cette relecture avant publication ; les trajets ont les
+mêmes coûts et la même topologie. L'export GraphML est facultatif pour éviter
+la sérialisation XML coûteuse sur 835 tuiles. Les vérifications des coordonnées,
+extrémités et poids utilisent des opérations vectorisées, avec les mêmes règles.
+
 Sources des conventions et de l'extraction :
 [foot](https://wiki.openstreetmap.org/wiki/Key:foot),
 [oneway:foot](https://wiki.openstreetmap.org/wiki/Key:oneway:foot),
@@ -95,7 +108,7 @@ Dans `data/silver/reseau_ara_bidirectionnel/<tuile_id>/` :
 
 | Fichier | Contenu |
 |---|---|
-| `reseau_pieton.graphml` | Graphe orienté avec poids de marche et identifiants OSM |
+| `reseau_pieton.graphml` | Export facultatif avec `--graphml` ; les deux GeoParquet suffisent à reconstruire le graphe routable |
 | `reseau_pieton_noeuds.parquet` | Nœuds, composantes, appartenance à la tuile et à sa fenêtre |
 | `reseau_pieton_troncons.parquet` | Arcs, géométries, longueurs, secondes, identifiant de voie, segment et direction OSM |
 | `zone_requete.parquet` | Fenêtre d'extraction avec marge |
@@ -107,6 +120,10 @@ nœuds ou de tronçons n'est obtenu par simple addition des tuiles : les marges
 se recouvrent. Les clés `(de, vers, cle)` et les références OSM sont stables
 entre extractions compatibles. Les origines restent affectées à leur tuile
 principale dans les entrées figées.
+
+`direction_osm` vaut `1` ou `-1` pour indiquer l'orientation de l'arc par rapport
+à l'ordre des nœuds dans la voie OSM. Chaque segment retenu possède les deux
+orientations avec le même coût de marche : ce champ n'impose aucun sens unique.
 
 Une fenêtre sans tronçon **avec des origines** est une erreur à examiner ; elle
 ne devient pas un résultat d'accès nul. Sans origine, une tuile vide peut être
@@ -131,14 +148,20 @@ publiée avec l'état explicite `valide_sans_troncon_sans_origine`.
 
 ## Validation réalisée le 20 octobre 2026
 
+**La construction régionale de la version 2 est terminée : 835/835 tuiles,
+contrôle indépendant valide et 83 tests réussis.** La livraison est dans
+`data/silver/reseau_ara_bidirectionnel/` : 16 608 205 nœuds OSM distincts,
+17 246 938 segments, 34 493 876 arcs orientés distincts, environ 2,50 Gio.
+Voir [execution_reseau_ara.md](execution_reseau_ara.md) pour les rapports et
+les reprises après interruption. O1/O2 régionaux restent à calculer.
+
 La version 2 est vérifiée par les tests, notamment les trajets aller/retour de
 même durée malgré les tags directionnels, la relecture GraphML et l'acceptation
 du graphe par `WalkingNetwork`, le calculateur d'isochrones existant.
 
-Les essais régionaux ci-dessous concernent la version 1, avant le choix du
-modèle bidirectionnel. Ils doivent être régénérés avec la version 2 dans le
-nouveau dossier `data/silver/reseau_ara_bidirectionnel/`. Le constructeur refuse
-de mélanger ces versions à la reprise.
+Les essais historiques ci-dessous concernent la version 1, avant le choix du
+modèle bidirectionnel. Ils restent séparés de la livraison régionale de la
+version 2. Le constructeur refuse de mélanger ces versions à la reprise.
 
 - **82 tests réussis**, sans avertissement ni test ignoré, dans un environnement
   temporaire Python 3.15 avec osmium-tool 1.19.0 et OSMnx 2.1.1. La chaîne PBF
@@ -157,7 +180,8 @@ de mélanger ces versions à la reprise.
   références des arcs, géométries, longueurs, temps et empreintes.
 - Le bilan de la version 1 indique **1/835 tuiles validées**, état
   `partiel`. Les essais préliminaires ne sont pas additionnés à ce bilan.
-  La construction régionale complète et les calculs O1/O2 restent à exécuter.
+  Ce bilan historique ne décrit pas la livraison régionale actuelle ; seuls
+  les calculs O1/O2 restent à exécuter sur le nouveau réseau.
 
 Vérification des tests dans l'image reconstruite :
 

@@ -3,8 +3,9 @@
 Mise à jour après cet audit : le constructeur régional
 `geo/build_reseau_ara.py` a été implémenté avec nettoyage et validation intégrés.
 Voir [construction_reseau_ara.md](construction_reseau_ara.md). Les constats
-ci-dessous décrivent l'état observé avant cette implémentation ; la génération
-et la validation de l'ensemble des tuiles ARA restent une étape distincte.
+ci-dessous décrivent l'état observé avant cette implémentation. La génération
+et le contrôle indépendant des **835 tuiles ARA sont maintenant terminés** ;
+voir [execution_reseau_ara.md](execution_reseau_ara.md). O1/O2 régionaux restent à calculer.
 
 ## Périmètre vérifié
 

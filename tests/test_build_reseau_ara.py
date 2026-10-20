@@ -18,7 +18,7 @@ from pyproj import Transformer
 from shapely.geometry import box
 
 from geo.build_reseau_ara import (build, graph_from_objects, node_passable, parser,
-                                  publish_tile, read_osm_xml, sha256, way_directions)
+                                  publish_tile, read_osm_xml, sha256, way_directions, load_tile_graph)
 from geo.build_isochrones import WalkingNetwork
 
 X, Y = 910000, 6450000
@@ -208,15 +208,35 @@ class FusionAndPublicationTests(unittest.TestCase):
                 publish_tile(root / "x91_y645", [path], ZONE, ZONE, 4.5, {}, True)
             self.assertFalse((root / "x91_y645").exists())
 
+    def test_parquet_only_exports_reconstruct_the_same_routable_graph(self):
+        with TemporaryDirectory() as temp:
+            root = Path(temp)
+            nodes, ways = objects()
+            source = root / "source.osm"
+            write_xml(source, nodes, ways)
+            output = root / "x91_y645"
+            report = publish_tile(output, [source], ZONE, ZONE, 4.5,
+                                  {"export_graphml": False}, True, export_graphml=False)
+            self.assertFalse((output / "reseau_pieton.graphml").exists())
+            graph = load_tile_graph(output)
+            self.assertAlmostEqual(nx.shortest_path_length(graph, 1, 3, weight="temps_pieton_s"), 80, places=4)
+            self.assertAlmostEqual(nx.shortest_path_length(graph, 3, 1, weight="temps_pieton_s"), 80, places=4)
+            self.assertFalse(nx.has_path(graph, 1, 4))
+            self.assertIs(WalkingNetwork(graph, 4.5).graph, graph)
+            self.assertEqual(len(report["fichiers"]), 3)
+
     def test_empty_tile_without_origins_is_explicit_and_reopenable(self):
         with TemporaryDirectory() as temp:
             root = Path(temp)
             path = root / "empty.osm"
             write_xml(path, {}, {})
-            report = publish_tile(root / "x91_y645", [path], ZONE, ZONE, 4.5, {}, False)
-            self.assertEqual(report["etat"], "valide_sans_troncon_sans_origine")
-            self.assertEqual(report["noeuds"], 0)
-            self.assertTrue(gpd.read_parquet(root / "x91_y645/reseau_pieton_troncons.parquet").empty)
+            for graphml, tile in [(True, "x91_y645"), (False, "x92_y645")]:
+                with self.subTest(graphml=graphml):
+                    report = publish_tile(root / tile, [path], ZONE, ZONE, 4.5,
+                                          {"export_graphml": graphml}, False, export_graphml=graphml)
+                    self.assertEqual(report["etat"], "valide_sans_troncon_sans_origine")
+                    self.assertEqual(report["noeuds"], 0)
+                    self.assertTrue(gpd.read_parquet(root / tile / "reseau_pieton_troncons.parquet").empty)
 
 
 @unittest.skipUnless(shutil.which("osmium"), "osmium-tool requis pour la chaîne PBF réelle")
@@ -255,7 +275,7 @@ class PbfIntegrationTests(unittest.TestCase):
                 self.assertEqual(build(args)["tuiles_validees"], 1)
             args.tuiles = None
             self.assertEqual(build(args)["etat"], "regional_termine")
-            (args.output_dir / "x91_y645/reseau_pieton.graphml").write_text("corrompu")
+            (args.output_dir / "x91_y645/reseau_pieton_noeuds.parquet").write_text("corrompu")
             with self.assertRaisesRegex(ValueError, "modifié"):
                 build(args)
 

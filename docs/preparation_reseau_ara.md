@@ -1,7 +1,9 @@
 # Préparation du réseau piéton ARA
 
 Préparation réalisée le 20 octobre 2026 avec `geo/prepare_reseau_ara.py`.
-**Le graphe régional n'est pas encore construit.**
+**Mise à jour : les graphes des 835 tuiles régionales sont désormais construits
+et contrôlés.** Voir [execution_reseau_ara.md](execution_reseau_ara.md).
+Le plan de préparation reste l'instantané des entrées, antérieur à la construction.
 
 ## Problème constaté dans la collecte GTFS
 

@@ -2,6 +2,14 @@
 
 Contrôle : 2026-10-20T11:09:27.119604+02:00. Sources conservées sans correction.
 
+Cet inventaire décrit l'état initial, avant les corrections et la restauration
+des transports. Les graphes des **835 tuiles ARA sont désormais construits et
+contrôlés** ; voir [execution_reseau_ara.md](execution_reseau_ara.md). Pour les
+transports restaurés, voir [nettoyage_et_protection_donnees.md](nettoyage_et_protection_donnees.md).
+Les calculs O1/O2 sont également terminés sur la livraison ARA restaurée ;
+voir [accessibilite_ara.md](accessibilite_ara.md) pour l'état courant, les sorties
+et les cas partiels. Le tableau ci-dessous reste l'inventaire initial.
+
 | Données | Effectif | État |
 |---|---:|---|
 | Contours IGN ARA | 4025 communes, 5407 IRIS, 172 EPCI | Disponibles |

@@ -1,5 +1,16 @@
 # Périmètre des calculs géomatiques et préparation ARA
 
+**Mise à jour finale du 20 octobre : le réseau piéton et les calculs O1/O2 ARA
+sont terminés et contrôlés sur 835 tuiles**, avec marche bidirectionnelle.
+Voir [execution_reseau_ara.md](execution_reseau_ara.md) et
+[accessibilite_ara.md](accessibilite_ara.md) : 312 143 carreaux, 18 735 points
+d'offre, 72 389 paires accessibles, 351 indéterminées. Les valeurs partielles
+et les 15 offres non calculables restent explicites. `gold_couverture` des
+futurs emplacements est désormais produite et contrôlée séparément :
+[couverture_ara.md](couverture_ara.md), 563 613 relations et 312 143 candidats
+conservés avec leurs statuts. Les isochrones polygonaux régionaux restent à produire.
+Les constats ci-dessous décrivent l'audit antérieur.
+
 Vérification du 20 octobre 2026, après le passage du pipeline ayant réécrit les fichiers de transport. Aucun réseau régional ou indicateur n'a été recalculé pendant cette vérification.
 
 Une préparation régionale a ensuite été produite depuis la livraison validée, dans un dossier distinct : voir [preparation_reseau_ara.md](preparation_reseau_ara.md). Les constats ci-dessous sur la collecte partielle restent ceux des fichiers actifs ; le graphe régional reste à construire.

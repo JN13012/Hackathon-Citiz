@@ -24,7 +24,8 @@ import numpy as np
 import osmnx as ox
 import pandas as pd
 from pyproj import Transformer
-from shapely.geometry import LineString, Point
+from shapely.geometry import LineString
+from shapely import distance, get_point
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
@@ -251,14 +252,29 @@ def tile_receipt(directory, signature):
     report = json.loads((directory / "reseau_pieton_qc.json").read_text())
     if report["signature"] != signature or report["tuile_id"] != directory.name:
         raise ValueError(f"Tuile incompatible avec les paramètres actuels : {directory.name}")
-    expected = {"reseau_pieton_noeuds.parquet", "reseau_pieton_troncons.parquet", "reseau_pieton.graphml", "zone_requete.parquet"}
+    expected = {"reseau_pieton_noeuds.parquet", "reseau_pieton_troncons.parquet", "zone_requete.parquet"}
+    if signature.get("export_graphml", True):
+        expected.add("reseau_pieton.graphml")
     if set(report["fichiers"]) != expected:
         raise ValueError("Livraison de tuile incomplète")
     verify_files(directory, report["fichiers"])
     return report
 
 
-def publish_tile(directory, xmls, zone, core, speed, signature, useful):
+def load_tile_graph(directory):
+    """Reconstruit le graphe routable depuis les deux GeoParquet régionaux."""
+    nodes = gpd.read_parquet(directory / "reseau_pieton_noeuds.parquet").set_index("noeud_id")
+    edges = gpd.read_parquet(directory / "reseau_pieton_troncons.parquet").set_index(["de", "vers", "cle"])
+    if not nodes.index.is_unique or not edges.index.is_unique:
+        raise ValueError("Identifiants dupliqués dans les exports du réseau")
+    if not set(edges.index.get_level_values(0)).union(edges.index.get_level_values(1)).issubset(nodes.index):
+        raise ValueError("Références de nœuds absentes dans les exports")
+    nodes["x"], nodes["y"] = nodes.geometry.x, nodes.geometry.y
+    return ox.graph_from_gdfs(nodes, edges, graph_attrs={"crs": nodes.crs, "network_type": "walk",
+        "simplified": False, "modele_marche": "bidirectionnel"})
+
+
+def publish_tile(directory, xmls, zone, core, speed, signature, useful, export_graphml=True):
     nodes, ways, restrictions, counts = {}, {}, {}, Counter()
     for path in xmls:
         read_osm_xml(path, nodes, ways, restrictions, counts)
@@ -280,12 +296,13 @@ def publish_tile(directory, xmls, zone, core, speed, signature, useful):
     for tag in ("name", "highway", "foot", "access", "surface"):
         edge_export[f"{tag}_json"] = [json.dumps(graph[u][v][k].get(tag), ensure_ascii=False) for u, v, k in edge_frame.index]
     # Vérification des extrémités après projection et des poids dans les deux exports.
-    for u, v, _, data in graph.edges(keys=True, data=True):
-        line = data["geometry"]
-        if Point(line.coords[0]).distance(Point(graph.nodes[u]["x"], graph.nodes[u]["y"])) > 0.001 or Point(line.coords[-1]).distance(Point(graph.nodes[v]["x"], graph.nodes[v]["y"])) > 0.001:
-            raise ValueError("Extrémités de tronçon incohérentes")
-        if not math.isclose(data["temps_pieton_s"], data["longueur_m"] / (speed / 3.6), abs_tol=1e-6):
-            raise ValueError("Temps piéton incohérent")
+    starts, ends = get_point(edge_export.geometry.to_numpy(), 0), get_point(edge_export.geometry.to_numpy(), -1)
+    expected_starts = node_frame.geometry.reindex(edge_export.de).to_numpy()
+    expected_ends = node_frame.geometry.reindex(edge_export.vers).to_numpy()
+    if (distance(starts, expected_starts) > 0.001).any() or (distance(ends, expected_ends) > 0.001).any():
+        raise ValueError("Extrémités de tronçon incohérentes")
+    if not np.allclose(edge_export.temps_pieton_s, edge_export.longueur_m / (speed / 3.6), rtol=0, atol=1e-6):
+        raise ValueError("Temps piéton incohérent")
     report = {
         "execution_utc": datetime.now(timezone.utc).isoformat(), "signature": signature,
         "etat": "valide" if graph.edges else "valide_sans_troncon_sans_origine",
@@ -308,9 +325,11 @@ def publish_tile(directory, xmls, zone, core, speed, signature, useful):
         node_export.to_parquet(stage / "reseau_pieton_noeuds.parquet", index=False)
         edge_export.to_parquet(stage / "reseau_pieton_troncons.parquet", index=False)
         gpd.GeoDataFrame({"tuile_id": [directory.name]}, geometry=[zone], crs=2154).to_parquet(stage / "zone_requete.parquet", index=False)
-        ox.save_graphml(graph, stage / "reseau_pieton.graphml")
+        if export_graphml:
+            ox.save_graphml(graph, stage / "reseau_pieton.graphml")
         # Relecture des exports avant publication de tout le dossier.
-        restored = ox.load_graphml(stage / "reseau_pieton.graphml", edge_dtypes={"longueur_m": float, "temps_pieton_s": float})
+        restored = (ox.load_graphml(stage / "reseau_pieton.graphml", edge_dtypes={"longueur_m": float, "temps_pieton_s": float})
+                    if export_graphml else load_tile_graph(stage))
         if set(restored.edges(keys=True)) != set(graph.edges(keys=True)) or len(gpd.read_parquet(stage / "reseau_pieton_noeuds.parquet")) != len(node_export) or len(gpd.read_parquet(stage / "reseau_pieton_troncons.parquet")) != len(edge_export):
             raise ValueError("Relecture des exports incohérente")
         report["fichiers"] = {p.name: sha256(p) for p in stage.iterdir()}
@@ -348,6 +367,7 @@ def build(args):
     signature = {"plan_sha256": plan_hash, "constructeur_sha256": sha256(Path(__file__)),
                  "validation_sha256": sha256(ROOT / "geo/build_reseau.py"), "regles_version": RULE_VERSION,
                  "osmnx_version": ox.__version__, "vitesse_kmh": speed,
+                 "export_graphml": args.graphml,
                  "archives": {a["nom"]: a["sha256"] for a in archives}}
     args.output_dir.mkdir(parents=True, exist_ok=True)
     if any((args.output_dir / t).exists() for t in requested) and not args.reprendre:
@@ -380,7 +400,7 @@ def build(args):
                     xmls[tile].append(xml)
             for tile in batch:
                 reports[tile] = publish_tile(args.output_dir / tile, xmls[tile], zones.loc[tile].geometry,
-                    tiles.loc[tile].geometry, speed, signature, bool(tiles.loc[tile, "calcul_population_offre_utile"]))
+                    tiles.loc[tile].geometry, speed, signature, bool(tiles.loc[tile, "calcul_population_offre_utile"]), args.graphml)
                 print(f"Tuile {tile} validée : {reports[tile]['noeuds']} nœuds, {reports[tile]['troncons_orientes']} arcs", flush=True)
     # Ne jamais annoncer une couverture régionale pour un simple échantillon.
     if sha256(plan_path) != plan_hash:
@@ -410,6 +430,7 @@ def parser():
     ap.add_argument("--output-dir", type=Path, default=ROOT / "data/silver/reseau_ara_bidirectionnel")
     ap.add_argument("--tuiles", nargs="+", help="identifiants du plan ; toutes les tuiles par défaut")
     ap.add_argument("--lot", type=int, default=1, help="extractions groupées, de 1 à 32 ; 1 limite la mémoire")
+    ap.add_argument("--graphml", action="store_true", help="export GraphML supplémentaire ; les deux GeoParquet suffisent au routage")
     ap.add_argument("--reprendre", action="store_true", help="réutiliser seulement les sorties compatibles et intègres")
     return ap
 
