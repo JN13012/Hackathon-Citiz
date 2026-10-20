@@ -2,7 +2,7 @@
 
 Outil d'aide à la décision : où implanter de nouvelles stations d'autopartage Citiz (et, plus largement, où ajouter un arrêt de bus ou une station vélo) pour toucher le plus d'habitants au moindre coût.
 
-- **Territoire (D1)** : Auvergne-Rhône-Alpes (code région 84), avec Lyon comme grande ville.
+- **Territoire (D1)** : Auvergne-Rhône-Alpes (code région 84), avec Lyon comme grande ville (choix d'équipe du 19/10, EDA `eda-citiz/`).
 - **Période** : lundi 19 au mercredi 21 octobre 2026, soutenance mercredi après-midi.
 - **Référence unique** : le PDF du sujet (`Hackathon Mobility`, Epitech v0.4.0).
 
@@ -102,6 +102,7 @@ deux constructions à des dates différentes peuvent installer des versions diff
 ```bash
 python scripts/compter_stations_citiz.py   # compte stations et véhicules des réseaux Citiz (D1)
 python scripts/run_all.py                  # rejoue la chaîne bronze -> silver -> gold
+python optim/build_offre_partagee.py       # Rôle 4 seul : stations partagées (idem build_projections, build_couts)
 ```
 
 ## Points de contrôle
