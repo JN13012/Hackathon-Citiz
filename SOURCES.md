@@ -59,7 +59,7 @@ marche sont conservées dans le rapport et dans `geo/README.md`.
 
 `geo/build_isochrones.py` utilise ce réseau local et les origines fournies par
 l'équipe. Premier jeu : les arrêts de `data/silver/arrets.parquet` situés dans
-Grenoble. Les futurs candidats par carreau restent à livrer. La méthode utilise
+Grenoble. Les candidats par carreau sont désormais disponibles localement. La méthode utilise
 [Dijkstra avec seuil de temps (NetworkX)](https://networkx.org/documentation/stable/reference/algorithms/generated/networkx.algorithms.shortest_paths.weighted.single_source_dijkstra_path_length.html)
 et la [découpe de lignes (Shapely)](https://shapely.readthedocs.io/en/stable/manual.html#shapely.ops.substring).
 Hypothèses supplémentaires : raccordement droit au chemin le plus proche,
@@ -134,3 +134,31 @@ Aucun montant n'est fourni par le sujet. Chaque valeur de `optim/couts.yaml` doi
 | Tarifs publics Citiz (recettes) | flux GBFS `system_pricing_plans`, ex. https://backend.citiz.fr/public/provider/5/gbfs/v3.0/system_pricing_plans.json | station Citiz |
 | Taux normal de TVA (20 %) | https://www.impots.gouv.fr/professionnel/questions/quels-sont-les-taux-de-tva-en-vigueur-en-france-et-dans-lunion-europeenne | recettes HT |
 | Entretien d'un arrêt (500 €/an), dimensionnement des stations, durées de vie, usage d'une station Citiz (1 location/jour, 3 h, 30 km) | **hypothèse** (voir `optim/couts.yaml`) | tous |
+
+
+## O1 et O2 — calcul local Grenoble du 20 octobre 2026
+
+`geo/build_accessibilite.py` croise la population Filosofi 2021 livrée par le
+Rôle 3 (`data/silver/carreaux_socio.parquet`) et `gold_offre.parquet` issu des
+livraisons GTFS et GBFS de l'équipe, sur le réseau piéton décrit plus haut.
+Les originaux de population sont archivés dans
+`data/bronze/teams/population_2026-10-20/` ; les arrêts importés de Teams sont
+tracés dans `data/bronze/teams/import_arrets_manifest.json` ; les flux GBFS sont
+tracés dans `data/bronze/gbfs_flux.csv`. Aucun accès Teams n'est nécessaire au
+recalcul sur ces fichiers locaux.
+
+Hypothèses : population représentée au centre du carreau ; sélection communale
+par ce centre ; cinq minutes à 4,5 km/h, raccords droits inclus aux deux bouts ;
+seuil de raccordement population 150 m, offre 50 m ; regroupement O1 à au moins
+20 habitants. O1 est une moyenne pondérée par la population des nombres d'options
+accessibles ; les fréquences GTFS sont aussi exportées par mode, sans être
+mélangées aux capacités GBFS. O2 inclut les populations voisines de Grenoble.
+Ces choix et les SHA-256 exacts sont dans
+`data/gold/accessibilite_grenoble/accessibilite_qc.json`.
+
+L'index de présélection utilise [STRtree (Shapely)](https://shapely.readthedocs.io/en/stable/strtree.html),
+puis le routage utilise Dijkstra sur le graphe pondéré en secondes. Les polygones
+cartographiques ne déterminent pas la desserte. Aucun flux de stations vélo
+n'est présent dans les données du pilote Grenoble ; cela ne démontre pas
+l'absence de service vélo sur le terrain. Les limites du réseau OSM et du champ
+Filosofi restent applicables.

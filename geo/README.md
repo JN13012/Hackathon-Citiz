@@ -227,9 +227,9 @@ docker compose run --rm --no-deps pipeline python -W error -m unittest discover 
 ## Calculer les zones de marche de cinq minutes
 
 `build_isochrones.py` travaille **hors connexion** sur les fichiers du réseau.
-Le pilote utilise les arrêts déjà présents dans Grenoble : les candidats et les
-carreaux de population ne sont pas encore livrés dans le dépôt. Les arrêts ne
-remplacent pas ces futurs candidats dans la livraison régionale.
+Le premier pilote utilise les arrêts présents dans Grenoble. Les carreaux de
+population et les candidats sont maintenant disponibles localement ; le calcul
+O1/O2 ci-dessous les croise avec les arrêts et les stations partagées.
 
 ```bash
 docker compose build
@@ -275,7 +275,7 @@ ajoutent `tampon_m` et `surface_m2` ; cette surface décrit le tampon cartograph
 de chaque côté des chemins atteignables**, sans enveloppe convexe. Ce tampon
 peut dépasser les extrémités atteignables ou franchir un mur ou un cours d'eau
 de faible largeur. Il ne démontre pas l'accès aux bâtiments et aux parcelles.
-Pour les futurs indicateurs de population et d'offre, utiliser le routage des
+Pour les indicateurs de population et d'offre, utiliser le routage des
 points, avec leur coût de raccordement, plutôt que compter aveuglément les
 points inclus dans ces polygones. L'aperçu HTML simplifie à 1 m uniquement pour
 l'affichage ; les GeoParquet conservent les géométries calculées.
@@ -286,12 +286,12 @@ origine dont le rayon maximal de marche déborde de la zone d'extraction et dont
 les résultats pourraient être tronqués. Une marge de 1 km couvre largement les
 375 m théoriques de marche du pilote.
 
-Quand `gold_candidates.parquet` sera disponible, utiliser le même script avec
+Pour calculer les polygones depuis `gold_candidates.parquet`, utiliser le même script avec
 `--origines chemin/gold_candidates.parquet --id-col id_carreau --type-origine candidat`
 et un dossier de sortie distinct. Les candidats doivent être des points avec
 leurs identifiants d'origine. Pour toute l'ARA, le réseau régional doit d'abord
-être construit et assemblé ; ce pilote ne calcule pas encore O1, O2 ou les
-couvertures de population.
+être construit et assemblé. Le script O1/O2 ci-dessous route directement les
+paires de points ; il ne nécessite pas de fabriquer leurs polygones.
 
 Tests analytiques hors connexion (coût d'accès, courbes, branches, voies longues,
 sens des géométries, composantes déconnectées et exports) :
@@ -299,4 +299,102 @@ sens des géométries, composantes déconnectées et exports) :
 ```bash
 docker compose run --rm pipeline python -W error -m unittest discover \
   -s tests -p test_build_isochrones.py -v
+```
+
+
+## O1 et O2 — pilote Grenoble
+
+`build_accessibilite.py` calcule les deux indicateurs **hors connexion** sur le
+réseau piéton local. Les entrées doivent déjà être présentes :
+`data/silver/carreaux_socio.parquet`, `data/gold/gold_offre.parquet`, les contours
+IGN et `data/silver/reseau_grenoble/`. Les données restent exclues de Git.
+
+```bash
+docker compose build
+docker compose run --rm pipeline python geo/build_accessibilite.py \
+  --codes-communes 38185
+```
+
+Les résultats sont dans `data/gold/accessibilite_grenoble/`. Lancer ce script
+séparément du pipeline d'ingestion pour réutiliser les livraisons locales sans
+les télécharger de nouveau. `--output-dir` permet de conserver plusieurs essais.
+Le réseau de Grenoble ne permet pas de sélectionner une autre ville : construire
+son réseau, puis le fournir avec `--reseau-dir`.
+
+### Définitions et hypothèses
+
+**O1** mesure combien de points d'offre distincts un habitant représenté au
+centre de son carreau peut atteindre. Avec 100 habitants et 5 options accessibles,
+la valeur est **5 options par habitant**. Lors d'un regroupement de carreaux,
+la moyenne est pondérée par leur population : `somme(P_i × N_i) / somme(P_i)`.
+On ne divise pas les 5 options par 100 et on ne somme pas les valeurs des carreaux.
+Les comptes par mode sont aussi fournis. Pour les GTFS, les sommes des
+`passages_par_jour` accessibles sont conservées séparément par mode ; elles ne
+sont additionnées ni aux capacités GBFS ni aux nombres de stations.
+
+Les carreaux de **moins de 20 habitants** sont fusionnés avec un voisin, en
+privilégiant le plus long bord commun, jusqu'à atteindre ce seuil. À défaut de
+voisin contigu, le groupe géométriquement le plus proche est utilisé et ce repli
+est compté dans le rapport. Chaque ligne publique O1 représente un `groupe_id`,
+même si elle ne contient qu'un carreau. `groupes_o1.parquet` permet la jointure
+technique avec les identifiants de carreaux. Le regroupement évite d'afficher
+les petits effectifs individuellement ; ce n'est pas une garantie générale
+d'anonymisation. Un périmètre entier sous le seuil est masqué.
+
+**O2** somme la population des carreaux dont le centre rejoint chaque arrêt ou
+station de Grenoble en cinq minutes. Les habitants des communes voisines sont
+inclus ; `population_desservie_dans_pilote` permet de les distinguer. Un carreau
+ne compte qu'une fois par station. Une personne peut être desservie par plusieurs
+stations : **les lignes O2 ne s'additionnent pas pour obtenir des habitants uniques**.
+
+Le calcul conserve le modèle du réseau : **300 s à 4,5 km/h**, soit au maximum
+375 m, raccordements compris. Les raccords droits à la voie la plus proche
+consomment du temps aux **deux** extrémités. Seuils déclarés : **150 m pour un
+centre de carreau de 200 m**, **50 m pour une offre**. Ils sont réglables avec
+`--max-raccord-population-m` et `--max-raccord-offre-m`. Ce sont des hypothèses
+d'accès : aucune traversée de mur, entrée de bâtiment ou différence d'étage
+n'est vérifiée. Les trajets respectent les composantes du graphe et prennent en
+compte les portions intérieures des longues voies, même sans nœud atteignable.
+Les surfaces tamponnées des isochrones ne servent jamais aux comptages.
+
+La population d'un carreau est attribuée à son centre, puis entièrement conservée,
+sans prorata par surface à la frontière de Grenoble. La présélection utilise
+une marge de 375 m pour l'offre et la population ; le script exige une extraction
+réseau assez grande pour couvrir ces trajets. Les **135 063,5 habitants estimés**
+proviennent de Filosofi 2021 et ne constituent pas un recensement communal :
+champ des ménages fiscaux, valeurs parfois imputées ou fractionnaires.
+
+Un raccordement impossible produit un statut explicite. Les indicateurs complets
+sont alors vides ; les champs `*_min` gardent les résultats connus quand une
+borne inférieure peut être calculée. Une capacité manquante reste vide sans
+empêcher de compter la station. `complet` décrit le calcul sur les fichiers
+fournis, sans garantir l'exhaustivité des transports recensés.
+
+### Sorties
+
+| Fichier | Contenu |
+|---|---|
+| `gold_o1.parquet`, `.csv`, `.geojson` | Groupes de carreaux, population, options accessibles par habitant, comptes par mode, fréquences et capacités séparées |
+| `gold_o2.parquet`, `.csv`, `.geojson` | Offre dans Grenoble, type, valeur/unité source, population desservie totale et dans le pilote |
+| `groupes_o1.parquet` | Correspondance technique `id_carreau` → `groupe_id` |
+| `accessibilite_carreaux_offres.parquet` | Paires accessibles uniques et temps de marche en secondes ; inclut les voisins utiles à O1/O2 |
+| `paires_indeterminees.parquet` | Paires géométriquement possibles sans calcul valide ; aucune présentée comme inaccessible |
+| `raccordements_population.parquet`, `raccordements_offre.parquet` | Points, distances, coûts d'accès, tronçons, abscisses et statuts |
+| `accessibilite_qc.json` | Périmètre, hypothèses, effectifs, contrôles et SHA-256 des entrées |
+| `apercu_o1_o2.html` | Carte interactive autonome, à ouvrir directement dans un navigateur |
+
+GeoParquet : EPSG:2154 ; GeoJSON : EPSG:4326 ; CSV : attributs sans géométrie.
+Les exports techniques servent à auditer et à refaire les jointures ; la carte
+O1 utilise uniquement les groupes. Les fichiers gold existants à la racine de
+`data/gold/` restent des entrées, les nouvelles sorties sont dans le dossier pilote.
+
+Résultats mesurés et limites de livraison : [bilan Grenoble](../docs/resultats_geomatique_grenoble.md).
+L'extension à Lyon/ARA et `gold_couverture` entre candidats et population restent
+à produire ; la relation carreaux–offre existante n'est pas cette couverture.
+
+Tests analytiques et exports (avec les contrôles des étapes précédentes) :
+
+```bash
+docker compose run --rm pipeline python -W error -m unittest discover \
+  -s tests -p 'test_build*.py' -v
 ```
