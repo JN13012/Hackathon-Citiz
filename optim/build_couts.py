@@ -14,11 +14,14 @@ Sorties :
 - data/silver/couts_equipements.parquet  équipement x scénario de coût (bas / central / haut), entrée de l'optimiseur
 - data/silver/marge_citiz.parquet        station Citiz x scénario (pessimiste / central / optimiste) : recette, coût, marge
 - data/silver/couts_qc.txt               rapport qualité
-Usage : python optim/build_couts.py   (après build_offre_partagee.py, pour les réseaux du territoire)
+Usage : python optim/build_couts.py [--refresh]   (après build_offre_partagee.py, pour les réseaux du territoire)
+Les tarifs lus aujourd'hui (data/bronze/citiz_tarifs.json) sont réutilisés ; --refresh pour les relire.
 """
+import argparse
 import json
 import math
 from concurrent.futures import ThreadPoolExecutor
+from datetime import date, datetime
 
 import geopandas as gpd
 import pandas as pd
@@ -121,8 +124,12 @@ def trip_price(plan, hours, km):
         + segment_cost(plan.get("per_min_pricing"), hours * 60)
 
 
-def load_citiz_plans():
-    """Formules tarifaires de tous les réseaux Citiz (backend.citiz.fr)."""
+def load_citiz_plans(refresh=False):
+    """Formules tarifaires de tous les réseaux Citiz (backend.citiz.fr), relues une fois par jour."""
+    cache = T.BRONZE / "citiz_tarifs.json"
+    if not refresh and cache.exists() and datetime.fromtimestamp(cache.stat().st_mtime).date() == date.today():
+        print(f"Tarifs Citiz du jour réutilisés ({cache.name}) ; --refresh pour les relire")
+        return json.loads(cache.read_text(encoding="utf-8"))
     def read(job):
         _, url = job
         try:
@@ -136,7 +143,7 @@ def load_citiz_plans():
     with ThreadPoolExecutor(max_workers=10) as pool:
         plans = [p for ps in pool.map(read, O.citiz_backend_jobs()) for p in ps]
     T.BRONZE.mkdir(parents=True, exist_ok=True)
-    (T.BRONZE / "citiz_tarifs.json").write_text(json.dumps(plans, ensure_ascii=False), encoding="utf-8")
+    cache.write_text(json.dumps(plans, ensure_ascii=False), encoding="utf-8")
     return plans
 
 
@@ -174,13 +181,16 @@ def citiz_revenue(tariffs, usage, vehicles_per_station):
 # ---------------------------------------------------------------- main
 
 def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--refresh", action="store_true", help="relire les tarifs Citiz même s'ils datent d'aujourd'hui")
+    args = ap.parse_args()
     spec = yaml.safe_load(COSTS_FILE.read_text(encoding="utf-8"))
     df = load_postes(spec)
     validate(df)
     costs = equipment_costs(df)
 
     usage = spec["recettes"]["station_citiz"]
-    tariffs = citiz_tariffs(load_citiz_plans(), usage)
+    tariffs = citiz_tariffs(load_citiz_plans(args.refresh), usage)
     revenue, weights = citiz_revenue(tariffs, usage, spec["dimensionnement"]["station_citiz"]["vehicules_par_station"])
     rev = revenue.set_index("scenario")["recette_annuelle"]
     cost = costs.set_index(["type_equipement", "scenario"])["cout_annualise"]

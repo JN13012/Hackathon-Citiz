@@ -4,18 +4,24 @@
 
 | Script | Sortie (`data/silver/`) | Rapport |
 |---|---|---|
-| `build_offre_partagee.py` | `stations_partagees` (territoire), `stations_partagees_france` (national, pour le modèle), `stations_a_venir` (« Ouverture prochaine ») | `stations_partagees_qc.txt`, `data/bronze/gbfs_flux.csv` |
+| `build_offre_partagee.py` | `stations_partagees` (territoire), `stations_partagees_france` (Citiz de France, pour le modèle), `stations_a_venir` (« Ouverture prochaine ») | `stations_partagees_qc.txt`, `data/bronze/gbfs_flux.csv` |
 | `build_projections.py` | `projections` (un département), `projections_carreaux` (un carreau 200 m) | `projections_qc.txt` |
 | `build_couts.py` | `couts` (un poste), `couts_equipements` (équipement x scénario de coût bas / central / haut), `tarifs_citiz` (formules GBFS), `marge_citiz` (pessimiste / central / optimiste) | `couts_qc.txt`, `data/bronze/citiz_tarifs.json` |
 
-- **Territoire** : nettoyage national, recoupe à la fin. Par défaut Auvergne-Rhône-Alpes, région 84 (`NIVEAU` / `CODES` dans `territoire.py`,
-  contours geo.api.gouv.fr) ; `--contours data/silver/contours.parquet` pour utiliser le contour du Rôle 2.
-- **Offre partagée** : 196 flux GBFS (transport.data.gouv.fr + backend.citiz.fr). Stations physiques seulement :
+- **Territoire** : par défaut Auvergne-Rhône-Alpes, région 84 (`NIVEAU` / `CODES` dans `territoire.py`, contours
+  geo.api.gouv.fr) ; `--contours data/silver/contours.parquet` pour utiliser le contour du Rôle 2.
+  Seul Citiz est lu sur toute la France (entraînement du modèle) ; les autres jeux GBFS ne sont téléchargés que si leur
+  zone (`covered_area` : commune, EPCI, département, région) touche le territoire, ou s'ils sont nationaux ; recoupe
+  spatiale finale. Filosofi est lu par blocs et filtré sur les départements du territoire.
+- **Temps** (19-20/10/2026) : offre partagée 73 s -> 13 s (37 jeux GBFS sur 155), projections 17 s -> 10 s, coûts 16 s -> 1 s.
+  Le relevé GBFS et les tarifs Citiz du jour sont réutilisés (`data/bronze/gbfs_cache.json`, `citiz_tarifs.json`) :
+  `--refresh` pour les relire. Délai de 15 s par requête ; seules les réponses invalides sont relues (3 fois).
+- **Offre partagée** : flux GBFS de transport.data.gouv.fr + backend.citiz.fr (18 réseaux Citiz). Stations physiques seulement :
   les zones virtuelles des opérateurs free-floating (Dott, Voi, Pony, Bird : 61 252), Getaround (autopartage entre
   particuliers, sans stations) et les 2 stations Citiz non publiques repérées par l'EDA (« Véhicules hors-circuit »,
   « DEMOBOX (Réservé Citiz) ») sont exclus. Les stations « Ouverture prochaine » (25, toutes Citiz Grand Est) ne sont pas
   une offre existante : elles vont dans `stations_a_venir` (lieux déjà choisis par Citiz, utiles pour valider le modèle).
-  Doublons `system_id` + `station_id` retirés ; capacité 0, < 0 ou > 150 -> vide. Chaque flux est relu jusqu'à 3 fois.
+  Doublons `system_id` + `station_id` retirés ; capacité 0, < 0 ou > 150 -> vide.
   Résultat ARA (19/10/2026) : 620 stations Citiz (129 communes), 901 stations vélo, 36 Clem.
 - **Projections** : Omphale 2022 (central, basse, haute), 2021 -> 2030, appliqué à chaque carreau via son département.
 - **Coûts** : `couts.yaml`, chaque montant sourcé (url) ou « hypothèse », avec min / max pour la sensibilité.
