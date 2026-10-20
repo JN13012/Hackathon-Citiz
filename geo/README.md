@@ -5,6 +5,95 @@
 - Produire `gold_isochrones`, `gold_o1`, `gold_o2`, `gold_couverture`.
 - Livrer le contour du territoire en premier (lundi 15 h) : tout le monde en a besoin.
 
+## Préparation du réseau régional ARA
+
+`prepare_reseau_ara.py` prépare les entrées et le découpage de toute la région,
+sans téléchargement et sans construire encore le graphe. Les archives OSM
+Auvergne et Rhône-Alpes sont déjà dans `data/bronze/osm_ara/`.
+
+Utiliser explicitement la livraison validée des arrêts. Un ancien lancement
+avait ignoré TCL Lyon après une erreur HTTP 401 et omis `--contours`, puis
+publié une collecte partielle. Le collecteur a depuis été protégé et les
+fichiers actifs restaurés : un échec GTFS arrête maintenant la publication,
+les contours sont obligatoires et les contrôles précèdent le remplacement.
+Les entrées figées de cette préparation restent la référence du futur
+traitement régional.
+
+```bash
+docker compose run --rm --build pipeline python geo/prepare_reseau_ara.py \
+  --arrets "data/bronze/livraisons/transport_20261020T115246/arrets 2.parquet" \
+  --output-dir data/silver/preparation_reseau_ara
+```
+
+Le script refuse de remplacer un dossier de préparation existant : choisir un
+nouveau `--output-dir` pour une nouvelle version. Par défaut il exige les 19
+réseaux déclarés dans le collecteur GTFS, vérifie que les points d'offre sont
+dans les communes IGN, conserve les carreaux frontaliers et les capacités
+inconnues, et vérifie les SHA-256 des deux archives OSM. La présence d'un code
+de réseau ne prouve pas que tous ses arrêts sont présents ; l'exhaustivité reste
+limitée à la livraison contrôlée.
+
+Sorties dans le dossier demandé :
+
+| Fichier | Rôle |
+|---|---|
+| `entrees/contours.parquet`, `territoire.parquet` | Référentiel régional figé |
+| `entrees/arrets.parquet`, `stations_partagees.parquet`, `carreaux_socio.parquet` | Copies des entrées sélectionnées pour la préparation |
+| `entrees/gold_offre.parquet`, `gold_candidates.parquet` | Entrées dérivées avec noms des stations corrigés et affectation à une tuile |
+| `tuiles.parquet` | Grille Lambert 93 de 10 km, couvrant ARA et sa bordure ; effectifs de points par tuile principale |
+| `zones_extraction.parquet`, `.geojson` | Fenêtres de chaque tuile avec une marge supplémentaire de 1 km |
+| `plan_reseau_ara.json` | Sources, empreintes, hypothèses, effectifs et état explicite `graphe_construit: false` |
+
+La règle `floor(x / taille)`, `floor(y / taille)` attribue un seul propriétaire
+à chaque point, y compris sur une limite de tuile. Les copies de points dans
+les marges ne devront pas être recomptées dans O1/O2. Les fenêtres avec marge
+se chevauchent volontairement pour conserver les trajets entre tuiles. Le
+paramètre `calcul_population_offre_utile` indique les tuiles contenant des
+origines ; il ne constitue pas une autorisation de supprimer leurs voisines du
+réseau.
+
+`build_reseau_ara.py` construit maintenant les graphes depuis les PBF : fusion
+des objets OSM identiques, filtrage des accès piétons, traitement des
+barrières, contrôle des connexions et des poids, puis exports par tuile.
+Les validations de `build_reseau.py` sont réutilisées. Les versions OSM
+contradictoires et les données invalides provoquent un échec avant publication
+de la tuile. Hypothèse retenue pour le projet : **toute voie conservée peut être
+parcourue à pied dans les deux sens**, avec le même temps de marche. Les tags
+de direction et restrictions de virage sont ignorés et signalés dans le rapport.
+Les accès conditionnels sont exclus et comptés. Les voies cyclables autorisées
+explicitement à pied sont incluses.
+
+```bash
+docker compose build pipeline
+docker compose run --rm pipeline python geo/build_reseau_ara.py \
+  --tuiles x91_y645 x84_y651 --output-dir data/silver/reseau_ara_bidirectionnel
+```
+
+Pour traiter ensuite toutes les tuiles du plan et reprendre l'essai :
+
+```bash
+docker compose run --rm pipeline python geo/build_reseau_ara.py \
+  --output-dir data/silver/reseau_ara_bidirectionnel --reprendre
+```
+
+La reprise vérifie les empreintes et refuse de mélanger des versions de code,
+de plan ou d'archives différentes. Les tuiles sont publiées séparément après
+validation ; le bilan distingue une construction partielle de la couverture
+régionale complète. Voir les règles, sorties et limites dans
+[construction_reseau_ara.md](../docs/construction_reseau_ara.md).
+
+Le nouveau réseau suit le même modèle bidirectionnel que les scripts
+d'accessibilité actuels. Leur orchestration par tuile reste à mettre en place.
+Après validation des graphes, leur orchestration par tuile et la fusion des
+résultats seront nécessaires. La construction du réseau peut avancer sans
+modifier la formule O1 ; sa définition de publication reste à harmoniser avec
+le plan V5 avant de publier les indicateurs régionaux.
+
+```bash
+docker compose run --rm pipeline python -W error -m unittest discover \
+  -s tests -p test_prepare_reseau_ara.py -v
+```
+
 ## Préparer les contours
 
 `build_contours.py` lit des fichiers locaux IGN et écrit des GeoParquet en

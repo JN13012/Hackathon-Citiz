@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Bibliothèque OpenMP utilisée par LightGBM.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libgomp1 \
+    && apt-get install -y --no-install-recommends libgomp1 osmium-tool \
     && rm -rf /var/lib/apt/lists/*
 
 # Cette couche est réutilisée tant que les dépendances ne changent pas.

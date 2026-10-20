@@ -33,11 +33,14 @@ def offre_from_arrets(arrets):
 
 def offre_from_stations(stations):
     capacite = stations["capacite"] if "capacite" in stations else pd.Series(index=stations.index, dtype="float64")
+    noms = stations["nom"].astype("string") if "nom" in stations else pd.Series(pd.NA, index=stations.index, dtype="string")
+    noms = noms.str.strip().replace("", pd.NA).fillna(stations["station_id"].astype("string"))
     return gpd.GeoDataFrame({
         "offre_id": "station_" + stations["station_id"].astype(str),
         "source": "stations_partagees",
         "type": stations["type"],
-        "nom": stations["commune"] if "commune" in stations else pd.NA,
+        "nom": noms,
+        "code_commune": stations["commune"] if "commune" in stations else pd.NA,
         "operateur": stations["operateur"],
         "valeur": capacite,
         "unite": "capacite",

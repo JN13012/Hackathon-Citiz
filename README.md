@@ -75,6 +75,25 @@ arrêts, les stations partagées, les projections, les coûts et les tables
 Le téléchargement des sources nécessite un accès Internet. Les scripts
 géomatiques se lancent séparément, avec les commandes du guide ci-dessous.
 
+La collecte GTFS exige les contours IGN (`data/silver/contours.parquet`). Si un
+réseau attendu échoue au téléchargement ou à la lecture, elle termine en erreur
+et conserve les fichiers d'arrêts précédents. Les identifiants, géométries,
+fréquences, contours et doublons résiduels sont contrôlés avant publication ;
+les deux sorties sont d'abord écrites dans un dossier temporaire, avec retour
+à la version précédente si leur remplacement échoue. `run_all.py` s'arrête à
+la première erreur et exécute aussi le contrôle transport après le gold.
+Ces protections ne garantissent pas l'exhaustivité des sources GBFS.
+
+Pour reconstruire le gold à partir des tables silver déjà validées, sans
+relancer les téléchargements :
+
+```bash
+docker compose run --rm pipeline python scripts/build_gold.py
+docker compose run --rm pipeline python scripts/controle_qualite.py
+```
+
+Voir [le fonctionnement du nettoyage et la restauration des transports](docs/nettoyage_et_protection_donnees.md).
+
 Le dossier local `data/` est monté dans `/app/data` : les données téléchargées et les
 résultats restent disponibles dans `data/bronze/`, `data/silver/` et `data/gold/`,
 même après suppression du conteneur. Les données, `.venv`, `.git` et les fichiers

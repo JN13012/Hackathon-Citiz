@@ -25,7 +25,7 @@ Conventions : colonnes en `snake_case`, géométries en Lambert 93 (EPSG:2154), 
 
 | Table | Rôle | Contenu | Échéance |
 |---|---|---|---|
-| `gold_offre` | 1 | un point par arrêt ou station : type (bus, tram, vélo, trottinette, Citiz), fréquence ou capacité | mardi 10 h 30 |
+| `gold_offre` | 1 | un point par arrêt ou station : type (bus, tram, vélo, trottinette, Citiz), fréquence ou capacité ; `nom` = libellé source (identifiant de secours si vide), `code_commune` = code INSEE des stations partagées, vide pour les arrêts qui ne le fournissent pas | mardi 10 h 30 |
 | `gold_candidates` | 1 | centroïdes des carreaux peuplés, avec `id_carreau` | mardi 11 h |
 | `gold_isochrones` | 2 | cible : polygone de 5 min à pied par carreau (`id_carreau`) ; pilote actuel : origines de type `arret` dans Grenoble, dossier dédié `isochrones_grenoble_arrets` ; tampon cartographique de chemins routés | mardi 11 h |
 | `gold_o1` | 2 | pilote Grenoble : options accessibles par habitant, par groupe de carreaux (minimum 20 habitants), dossier `accessibilite_grenoble` | mardi 12 h 30 |
@@ -59,7 +59,7 @@ CSV sans géométrie et GeoJSON (EPSG:4326). Les codes et identifiants sont du t
 | `gold_o1.passages_jour_<mode>_par_habitant` | Somme des passages/jour des arrêts accessibles par centre, puis moyenne pondérée par la population ; compte les passages à des arrêts distincts | vide si une fréquence concernée manque ou si calcul incomplet |
 | `gold_o1.capacite_<mode>_par_habitant` | Capacité cumulée des stations accessibles par centre, puis moyenne pondérée ; séparée des fréquences | vide si une capacité concernée manque ou si calcul incomplet |
 | `gold_o1.population_evaluee`, `statut` | Population avec calcul complet ; `ok`, `partiel` ou `population_insuffisante` | population évaluée masquée si groupe sous le seuil |
-| `gold_o2.offre_id`, `source`, `type`, `nom`, `operateur`, `valeur`, `unite`, `geometry` | Point d'offre source dans Grenoble ; valeur = passages/jour pour un arrêt, capacité pour une station ; `nom` conservé du gold fourni (code commune pour certaines stations) | valeurs manquantes conservées |
+| `gold_o2.offre_id`, `source`, `type`, `nom`, `code_commune`, `operateur`, `valeur`, `unite`, `geometry` | Point d'offre source dans Grenoble ; valeur = passages/jour pour un arrêt, capacité pour une station ; noms des stations corrigés depuis le silver, code commune conservé séparément | valeurs manquantes conservées ; code commune vide pour les arrêts |
 | `gold_o2.population_desservie` | Somme des populations de centres accessibles en 300 s, voisins inclus ; jamais arrondie à l'entier dans la table | vide si raccordement impossible ou population potentiellement accessible non calculée |
 | `gold_o2.population_desservie_dans_pilote` | Sous-ensemble dont les centres sont dans Grenoble | idem |
 | `gold_o2.nb_carreaux_desservis`, `statut` | Nombre distinct de centres accessibles ; `ok`, `partiel` ou `non_calcule` | nombre vide si calcul incomplet |

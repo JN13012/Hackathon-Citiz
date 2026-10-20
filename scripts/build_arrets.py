@@ -1,16 +1,19 @@
 import argparse
 import hashlib
 import re
+import shutil
 import unicodedata
 import zipfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from tempfile import TemporaryDirectory
  
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import requests
 from scipy.spatial import cKDTree
+from shapely import covers, prepare as prepare_geometry, union_all
  
 ROOT = Path(__file__).resolve().parent.parent
 BRONZE = ROOT / "data" / "bronze" / "gtfs"
@@ -319,6 +322,80 @@ def dedupe(df):
  
 # ---------------------------------------------------------------- qualité
  
+def residual_duplicates(final):
+    """Paires restant à examiner après la fusion, sans suppression implicite."""
+    xy = np.c_[final.geometry.x, final.geometry.y]
+    return sum(len(cKDTree(xy[idx]).query_pairs(DEDUP_RADIUS_M))
+               for idx in final.groupby(final.nom.map(normalize)).indices.values() if len(idx) > 1)
+
+
+def validate_stops(final, boundary):
+    if final.empty:
+        raise ValueError("Aucun arrêt après préparation : publication annulée")
+    if final.crs is None or final.crs.to_epsg() != CRS_LAMBERT93:
+        raise ValueError("Projection des arrêts incorrecte")
+    for column in ["arret_id", "nom", "mode", "reseau"]:
+        if final[column].isna().any() or final[column].astype("string").str.strip().eq("").any():
+            raise ValueError(f"Valeurs absentes dans {column}")
+    if not final.arret_id.is_unique:
+        raise ValueError("Identifiants d'arrêt dupliqués")
+    if (final.geometry.isna() | final.geometry.is_empty | ~final.geometry.is_valid).any() or not final.geom_type.eq("Point").all():
+        raise ValueError("Géométries d'arrêt invalides")
+    values = pd.to_numeric(final.nb_passages_jour, errors="raise")
+    if not np.isfinite(values).all() or values.lt(0).any():
+        raise ValueError("Fréquences absentes, non finies ou négatives")
+    if not covers(boundary, final.geometry.to_numpy()).all():
+        raise ValueError("Des arrêts sont hors des contours")
+    residual = residual_duplicates(final)
+    if residual:
+        raise ValueError(f"{residual} paire(s) de doublons résiduels : publication annulée")
+
+
+def load_boundary(path):
+    if not path.is_file():
+        raise ValueError(f"Contours obligatoires introuvables : {path}")
+    contours = gpd.read_parquet(path) if path.suffix == ".parquet" else gpd.read_file(path)
+    if contours.empty or contours.crs is None:
+        raise ValueError("Contours vides ou projection absente")
+    if "niveau" in contours and contours.niveau.eq("commune").any():
+        contours = contours.loc[contours.niveau.eq("commune")]
+    if (contours.geometry.isna() | contours.geometry.is_empty | ~contours.geometry.is_valid).any():
+        raise ValueError("Contours invalides")
+    if not contours.geom_type.isin(["Polygon", "MultiPolygon"]).all():
+        raise ValueError("Les contours doivent être polygonaux")
+    boundary = union_all(contours.to_crs(CRS_LAMBERT93).geometry)
+    prepare_geometry(boundary)
+    return boundary
+
+
+def publish_stops(final, report):
+    """Écrire et valider avant remplacement ; restaurer si la publication échoue."""
+    SILVER.mkdir(parents=True, exist_ok=True)
+    names = ["arrets.parquet", "arrets_qc.txt"]
+    with TemporaryDirectory(dir=SILVER, prefix=".arrets_") as tmp:
+        stage = Path(tmp)
+        final.to_parquet(stage / names[0], index=False)
+        (stage / names[1]).write_text(report, encoding="utf-8")
+        backups = {}
+        for name in names:
+            dest = SILVER / name
+            if dest.exists():
+                backups[name] = stage / ("ancien_" + name)
+                shutil.copy2(dest, backups[name])
+        replaced = []
+        try:
+            for name in names:
+                (stage / name).replace(SILVER / name)
+                replaced.append(name)
+        except BaseException:
+            for name in replaced:
+                if name in backups:
+                    shutil.copy2(backups[name], SILVER / name)
+                else:
+                    (SILVER / name).unlink(missing_ok=True)
+            raise
+
+
 def quality_report(final, n_brut, n_hors_territoire, contours_used, service_dates):
     lines = ["Rapport qualité - table arrets", "=" * 40,
              f"Arrêts bruts (tous réseaux)        : {n_brut}",
@@ -327,11 +404,7 @@ def quality_report(final, n_brut, n_hors_territoire, contours_used, service_date
              + ("" if contours_used else "  (aucun contour fourni : pas de filtre)"),
              f"Arrêts livrés                      : {len(final)}"]
     # doublons résiduels : même nom, moins de 50 m
-    xy = np.c_[final.geometry.x, final.geometry.y]
-    residual = 0
-    for _, idx in final.groupby(final.nom.map(normalize)).indices.items():
-        if len(idx) > 1:
-            residual += len(cKDTree(xy[idx]).query_pairs(DEDUP_RADIUS_M))
+    residual = residual_duplicates(final)
     lines.append(f"Doublons résiduels (même nom <50 m) : {residual}  (attendu : 0)")
     lines.append(f"Arrêts sans mode ('autre')          : {(final['mode'] == 'autre').sum()}")
     lines.append(f"Arrêts à 0 passage                  : {(final.nb_passages_jour == 0).sum()}")
@@ -343,15 +416,17 @@ def quality_report(final, n_brut, n_hors_territoire, contours_used, service_date
  
 # ---------------------------------------------------------------- main
  
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--date", help="jour de référence YYYY-MM-DD (un mardi), sinon choix automatique")
-    ap.add_argument("--contours", help="contour du territoire (gpkg/parquet/geojson) pour filtrer")
+    ap.add_argument("--contours", type=Path, default=SILVER / "contours.parquet",
+                    help="contour obligatoire ; par défaut data/silver/contours.parquet")
     ap.add_argument("--gtfs", action="append", default=[], metavar="NOM=CHEMIN.zip",
                     help="utiliser un GTFS local au lieu du téléchargement (répétable)")
     ap.add_argument("--refresh", action="store_true", help="re-télécharger les GTFS")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
  
+    boundary = load_boundary(args.contours)
     wanted = datetime.strptime(args.date, "%Y-%m-%d").date() if args.date else None
     sources = []  # (réseau, étiquette du fichier, chemin)
     echecs = []
@@ -361,22 +436,32 @@ def main():
             sources.append((n, n, Path(p)))
     else:
         for n, slug in NETWORKS.items():
-            try:  # un réseau en panne ne doit pas bloquer les autres
+            try:
                 sources += [(n, label, path) for label, path in download_network(n, slug, args.refresh)]
             except Exception as exc:
                 echecs.append(n)
-                print(f"[{n}] IGNORÉ : {str(exc)[:150]}")
+                print(f"[{n}] ÉCHEC : {str(exc)[:150]}")
+    if echecs:
+        raise RuntimeError(f"Collecte incomplète : {', '.join(echecs)}. Fichiers silver conservés.")
  
     frames = []
     for reseau, label, p in sources:
         try:
-            frames.append(stops_from_gtfs(reseau, p, wanted, label))
+            frame = stops_from_gtfs(reseau, p, wanted, label)
+            if frame.empty:
+                raise ValueError("Aucun arrêt lu dans le GTFS")
+            frames.append(frame)
         except Exception as exc:
             echecs.append(label)
-            print(f"[{label}] IGNORÉ : {str(exc)[:150]}")
+            print(f"[{label}] ÉCHEC : {str(exc)[:150]}")
     if echecs:
-        print(f"\nRéseaux ignorés ({len(echecs)}) : {', '.join(echecs)}\n")
+        raise RuntimeError(f"Lecture GTFS incomplète : {', '.join(echecs)}. Fichiers silver conservés.")
+    if not frames:
+        raise RuntimeError("Aucune source GTFS exploitable. Fichiers silver conservés.")
     allstops = pd.concat(frames, ignore_index=True)
+    allstops["nb_passages_jour"] = pd.to_numeric(allstops.nb_passages_jour, errors="raise")
+    if not np.isfinite(allstops.nb_passages_jour).all() or allstops.nb_passages_jour.lt(0).any():
+        raise ValueError("Fréquences source absentes, non finies ou négatives")
     # coordonnées absentes ou à (0, 0) dans certains GTFS : on les écarte
     valides = allstops.lat.notna() & allstops.lon.notna() & ~((allstops.lat == 0) & (allstops.lon == 0))
     if (~valides).any():
@@ -391,28 +476,23 @@ def main():
     merged = dedupe(allstops)
     gdf = gpd.GeoDataFrame(merged, geometry=gpd.points_from_xy(merged.x, merged.y), crs=CRS_LAMBERT93)
  
-    n_hors = 0
-    if args.contours:
-        path = Path(args.contours)
-        contours = gpd.read_parquet(path) if path.suffix == ".parquet" else gpd.read_file(path)
-        contours = contours.to_crs(CRS_LAMBERT93)
-        inside = gpd.sjoin(gdf, contours[["geometry"]], how="inner", predicate="within")
-        keep = inside.index.unique()
-        n_hors = len(gdf) - len(keep)
-        gdf = gdf.loc[keep]
+    inside = covers(boundary, gdf.geometry.to_numpy())
+    n_hors = int((~inside).sum())
+    gdf = gdf.loc[inside]
  
     final = gdf[["arret_id", "nom", "mode", "nb_passages_jour", "reseau", "geometry"]] \
         .sort_values(["nom", "arret_id"]).reset_index(drop=True)
-    assert final.arret_id.is_unique, "arret_id en double"
+    validate_stops(final, boundary)
  
-    SILVER.mkdir(parents=True, exist_ok=True)
-    final.to_parquet(SILVER / "arrets.parquet")
     report = quality_report(final, n_brut, n_hors, bool(args.contours),
                             wanted or "automatique (mardi le plus chargé)")
-    (SILVER / "arrets_qc.txt").write_text(report, encoding="utf-8")
+    publish_stops(final, report)
     print(report)
     print(f"\nÉcrit : {SILVER / 'arrets.parquet'}")
  
  
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (RuntimeError, ValueError, OSError, KeyError) as exc:
+        raise SystemExit(f"Échec de la collecte des arrêts : {exc}")
