@@ -3,7 +3,7 @@
 Une ligne par carreau de 200 m habité du territoire, avec population, ménages, revenus, âges,
 part des ménages sans voiture, équipements et emplois, en Lambert 93 (EPSG:2154).
 
-Sources (téléchargées une fois dans data/bronze/insee/, puis réutilisées) :
+Sources (téléchargées une fois dans data/bronze/insee/ ; Filosofi dans data/bronze/filosofi/, partagé avec le rôle 4) :
   Filosofi 2021 carreaux 200 m, recensement (logement IRIS, emplois commune : 2023 sinon 2022),
   BPE 2025 fichier-détail, contours IRIS IGN (service WFS ou fichier), populations de référence 2023.
 
@@ -61,6 +61,8 @@ def arguments(argv=None):
 
 
 def main(argv=None):
+    # Chaque ligne s'affiche aussitôt, même quand la sortie est redirigée (run_all.py, Docker, fichier de log)
+    sys.stdout.reconfigure(line_buffering=True)
     args = arguments(argv)
     DEPARTEMENTS = tuple(d.strip().zfill(2) for d in args.departements.split(",") if d.strip())
     COMMUNES = [c.strip().zfill(5) for c in args.communes.split(",") if c.strip()]
@@ -86,9 +88,10 @@ def main(argv=None):
     AUJOURDHUI = datetime.date.today().isoformat()
     SOURCES = []   # rempli au fil des étapes, écrit dans SOURCES.md à la fin
 
-    def telecharger(url, nom):
+    def telecharger(url, nom, dossier=DOSSIER):
         """Télécharge une fois (les relances réutilisent le fichier)."""
-        chemin = os.path.join(DOSSIER, nom)
+        os.makedirs(dossier, exist_ok=True)
+        chemin = os.path.join(dossier, nom)
         if os.path.exists(chemin) and os.path.getsize(chemin) > 0:
             return chemin
         print(f"   téléchargement de {url.split('/')[-1]} …")
@@ -96,7 +99,13 @@ def main(argv=None):
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             partiel = f"{chemin}.{os.getpid()}.part"   # propre au processus : deux lancements simultanés ne se gênent pas
             with urllib.request.urlopen(req, timeout=600) as r, open(partiel, "wb") as f:
-                shutil.copyfileobj(r, f)
+                total, recu, palier = int(r.headers.get("Content-Length") or 0), 0, 0
+                while bloc := r.read(1 << 20):
+                    f.write(bloc)
+                    recu += len(bloc)
+                    if recu >= palier + 20e6:   # un point d'avancement tous les 20 Mo
+                        palier = recu
+                        print(f"      {recu / 1e6:,.0f} Mo" + (f" / {total / 1e6:,.0f} Mo" if total else ""))
             os.replace(partiel, chemin)
         else:
             shutil.copy(url.replace("file://", ""), chemin)
@@ -105,7 +114,7 @@ def main(argv=None):
 
     def extraire(archive):
         """Décompresse un zip ou un 7z et renvoie la liste des fichiers."""
-        cible = archive + "_x"
+        cible = os.path.join(DOSSIER, os.path.basename(archive) + "_x")   # toujours dans bronze/insee/
         if not os.path.isdir(cible):
             os.makedirs(cible)
             if archive.lower().endswith(".7z"):
@@ -166,7 +175,9 @@ def main(argv=None):
     print("Territoire :", COMMUNES or DEPARTEMENTS)
 
     print("1/7 Filosofi 2021")
-    archive = telecharger(LIENS["filosofi"], "filosofi_2021_csv.zip")
+    # Même fichier et même dossier que optim/build_projections.py (rôle 4) : téléchargé une seule fois pour les deux
+    archive = telecharger(LIENS["filosofi"], "Filosofi2021_carreaux_200m_csv.zip",
+                          dossier=os.path.join(args.data, "bronze", "filosofi"))
     fichiers = extraire(archive)
     csv = max([f for f in fichiers if f.lower().endswith(".csv") and "met" in os.path.basename(f).lower()]
               or [f for f in fichiers if f.lower().endswith(".csv")], key=os.path.getsize)
