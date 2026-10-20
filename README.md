@@ -67,7 +67,7 @@ docker compose build
 docker compose run --rm pipeline
 ```
 
- L'image utilise Python 3.15 sur Debian Trixie et installe les bibliothèques de `requirements.txt`,
+ L'image utilise Python 3.12 sur Debian Trixie et installe les bibliothèques de `requirements.txt`,
   ainsi que `libgomp1` pour LightGBM. Le conteneur exécute
 
   `python scripts/run_all.py`, puis s'arrête. Les étapes actives construisent les
