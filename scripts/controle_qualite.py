@@ -35,11 +35,11 @@ def normalise(nom):
 
 
 def doublons_proches(gdf, rayon=50):
-    """Nombre de paires (même nom normalisé, distance < rayon)."""
+    """Paires (même nom normalisé, distance < rayon) : liste de (ligne i, ligne j, distance en m)."""
     noms = gdf["nom"].map(normalise).values
     xy = np.column_stack([gdf.geometry.x.values, gdf.geometry.y.values])
     paires = cKDTree(xy).query_pairs(rayon)
-    return sum(1 for i, j in paires if noms[i] == noms[j])
+    return [(i, j, float(np.hypot(*(xy[i] - xy[j])))) for i, j in paires if noms[i] == noms[j]]
 
 
 def controle_points(gdf, nom_table, col_id):
@@ -60,8 +60,11 @@ def main():
     if arrets_path.exists():
         arrets = gpd.read_parquet(arrets_path)
         controle_points(arrets, "silver/arrets", "arret_id")
-        n_dup = doublons_proches(arrets)
-        verifie(n_dup == 0, f"aucun doublon (même nom < 50 m) : {n_dup} trouvé(s)")
+        dup = doublons_proches(arrets)
+        for i, j, d in dup[:10]:
+            a, b = arrets.iloc[i], arrets.iloc[j]
+            log(f"  doublon : {a.arret_id} / {b.arret_id} | {a.nom!r} | {a.reseau} / {b.reseau} | {d:.1f} m")
+        verifie(len(dup) == 0, f"aucun doublon (même nom < 50 m) : {len(dup)} trouvé(s)")
         zero = (arrets["nb_passages_jour"].fillna(0) == 0).mean()
         log(f"arrêts à 0 passage : {zero:.1%}")
         verifie(zero < 0.2, "moins de 20 % d'arrêts sans passage")
