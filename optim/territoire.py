@@ -57,16 +57,36 @@ def _communes_geo_api():
 
 
 def load_communes(contours=None):
-    """Communes du territoire en Lambert 93 : commune, nom_commune, dep, epci, region, geometry."""
+    """Communes du territoire en Lambert 93 : commune, nom_commune, dep, epci, region, geometry.
+
+    contours : fichier du Rôle 2 (geo/build_contours.py), au choix
+    - `contours.parquet` : lignes `niveau` = commune (code_insee), iris, epci (code_epci) ;
+      l'EPCI de chaque commune est retrouvé par les lignes epci quand elles existent ;
+    - `territoire.parquet` ou tout polygone sans codes : communes de geo.api.gouv.fr (NIVEAU / CODES)
+      dont un point intérieur tombe dans le polygone.
+    """
     if contours is None:
         gdf = _communes_geo_api()
-    else:  # table `contours` du Rôle 2 : code_insee, nom, niveau, geometry
+    else:
         path = Path(contours)
-        gdf = gpd.read_parquet(path) if path.suffix == ".parquet" else gpd.read_file(path)
-        if "niveau" in gdf.columns:
-            gdf = gdf[gdf["niveau"] == "commune"]
-        gdf = gdf.rename(columns={"code_insee": "commune", "nom": "nom_commune"})
-        gdf["dep"] = dep_of(gdf["commune"].astype(str))
+        src = gpd.read_parquet(path) if path.suffix == ".parquet" else gpd.read_file(path)
+        src = src.to_crs(CRS_LAMBERT93)
+        if {"niveau", "code_insee"} <= set(src.columns):
+            gdf = src[src["niveau"] == "commune"].rename(columns={"code_insee": "commune", "nom": "nom_commune"})
+            gdf["commune"] = gdf["commune"].astype(str)
+            gdf["dep"] = dep_of(gdf["commune"])
+            epci = src[src["niveau"] == "epci"]
+            if len(epci):
+                inner = gpd.GeoDataFrame(gdf[["commune"]], geometry=gdf.representative_point(), crs=gdf.crs)
+                hit = gpd.sjoin(inner, epci[["code_epci", "geometry"]], predicate="within")
+                gdf["epci"] = hit[~hit.index.duplicated()]["code_epci"].astype(str).reindex(gdf.index)
+        else:  # polygone seul : on prend les communes geo.api dont l'intérieur est dans le polygone
+            zone = src.union_all()
+            ref = _communes_geo_api().to_crs(CRS_LAMBERT93)
+            gdf = ref[ref.representative_point().within(zone)]
+            print(f"--contours sans codes de commune : {len(gdf)} communes de {NIVEAU} {CODES} dans le polygone")
+        if gdf.empty:
+            raise SystemExit(f"Aucune commune trouvée dans {contours}")
     gdf = gdf.reindex(columns=["commune", "nom_commune", "dep", "epci", "region", "geometry"])
     return gdf.set_geometry("geometry").to_crs(CRS_LAMBERT93)
 

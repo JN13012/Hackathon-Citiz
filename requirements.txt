@@ -13,3 +13,8 @@ lightgbm
 shap
 pulp
 openpyxl
+pyogrio
+python-calamine
+py7zr
+matplotlib
+certifi

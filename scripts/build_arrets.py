@@ -7,18 +7,18 @@ import zipfile
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
- 
+
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 import requests
 from scipy.spatial import cKDTree
 from shapely import covers, prepare as prepare_geometry, union_all
- 
+
 ROOT = Path(__file__).resolve().parent.parent
 BRONZE = ROOT / "data" / "bronze" / "gtfs"
 SILVER = ROOT / "data" / "silver"
- 
+
 # Territoire : Auvergne-Rhône-Alpes (grande ville : Lyon) - choix d'équipe du 19/10
 # nom du réseau -> identifiant du jeu de données sur data.gouv.fr
 NETWORKS = {
@@ -48,16 +48,16 @@ NETWORKS = {
     "cars_haute_loire": "reseau-interurbain-cars-region-haute-loire-43",
     "cars_cantal": "reseau-interurbain-cars-region-cantal-15",
 }
- 
+
 CRS_LAMBERT93 = 2154
 DEDUP_RADIUS_M = 50
 HOUR_MIN, HOUR_MAX = 6, 21  # passages comptés de 6 h (inclus) à 21 h (exclu)
 DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
- 
+
 BASE_MODES = {0: "tram", 1: "metro", 2: "train", 3: "bus", 4: "ferry", 5: "cable_car",
               6: "telepherique", 7: "funiculaire", 11: "trolleybus", 12: "monorail"}
- 
- 
+
+
 def mode_from_route_type(rt):
     """Traduit un route_type GTFS (standard ou étendu) en mode."""
     if pd.isna(rt):
@@ -71,23 +71,23 @@ def mode_from_route_type(rt):
         if lo <= rt <= hi:
             return mode
     return "autre"
- 
- 
+
+
 def normalize(name):
     """Nom sans accents ni majuscules, ponctuation et espaces simplifiés."""
     s = unicodedata.normalize("NFKD", str(name))
     s = "".join(c for c in s if not unicodedata.combining(c)).lower()
     return re.sub(r"[^a-z0-9]+", " ", s).strip()
- 
- 
+
+
 # ---------------------------------------------------------------- téléchargement
- 
+
 EXCLUDED_WORDS = ("fichiers txt", "gtfs-rt", "gtfsrt", "gtfs_rt", "netex", "trip_updates", "vehicle_positions")
- 
- 
+
+
 def resolve_gtfs_urls(slug):
     """Cherche dans l'API data.gouv.fr les fichiers GTFS statiques d'un jeu de données.
- 
+
     Un réseau peut publier plusieurs GTFS (ex. Grand Albigeois : urbain, périurbain, navettes) :
     on les retourne tous, en gardant la version la plus récente de chaque fichier.
     Retourne une liste [(titre, url)]."""
@@ -110,8 +110,8 @@ def resolve_gtfs_urls(slug):
     if not best:
         raise RuntimeError(f"Aucune ressource GTFS trouvée pour {slug}")
     return sorted((t, u) for _, t, u in best.values())
- 
- 
+
+
 def download_one(label, url, refresh=False):
     BRONZE.mkdir(parents=True, exist_ok=True)
     dest = BRONZE / f"{label}.zip"
@@ -130,8 +130,8 @@ def download_one(label, url, refresh=False):
     tmp.replace(dest)
     print(f"[{label}] téléchargé ({dest.stat().st_size / 1e6:.1f} Mo)")
     return dest
- 
- 
+
+
 def download_network(name, slug, refresh=False):
     """Télécharge tous les GTFS d'un réseau. Retourne [(étiquette, chemin)]."""
     resources = resolve_gtfs_urls(slug)
@@ -142,10 +142,10 @@ def download_network(name, slug, refresh=False):
             print(f"[{name}] fichier {i}/{len(resources)} : {title}")
         out.append((label, download_one(label, url, refresh)))
     return out
- 
- 
+
+
 # ---------------------------------------------------------------- lecture GTFS
- 
+
 def read_gtfs_table(zf, filename, wanted):
     """Lit un fichier GTFS (en chaînes), None s'il est absent. Ne garde que les colonnes utiles."""
     members = [m for m in zf.namelist() if m.lower().endswith(filename)]
@@ -156,11 +156,11 @@ def read_gtfs_table(zf, filename, wanted):
                          usecols=lambda c: c.strip() in wanted)
     df.columns = [c.strip() for c in df.columns]
     return df
- 
- 
+
+
 def pick_service_date(calendar, calendar_dates, trips, wanted=None):
     """Choisit un mardi 'normal' : celui qui a le plus de courses actives dans la fenêtre de validité.
- 
+
     Évite ainsi un mardi de vacances scolaires, où l'offre est réduite."""
     if wanted:
         return wanted
@@ -194,8 +194,8 @@ def pick_service_date(calendar, calendar_dates, trips, wanted=None):
         if n > best_n:
             best, best_n = d, n
     return best
- 
- 
+
+
 def active_services(calendar, calendar_dates, d):
     ds = d.strftime("%Y%m%d")
     active = set()
@@ -208,8 +208,8 @@ def active_services(calendar, calendar_dates, d):
         active |= set(x[x.exception_type == "1"].service_id)
         active -= set(x[x.exception_type == "2"].service_id)
     return active
- 
- 
+
+
 def stops_from_gtfs(name, zip_path, wanted_date=None, label=None):
     """Retourne un DataFrame : stop_id, nom, lat, lon, mode, nb_passages_jour, reseau."""
     label = label or name
@@ -223,7 +223,7 @@ def stops_from_gtfs(name, zip_path, wanted_date=None, label=None):
         calendar = read_gtfs_table(zf, "calendar.txt", {"service_id", "start_date", "end_date", *DAYS})
         calendar_dates = read_gtfs_table(zf, "calendar_dates.txt",
                                          {"service_id", "date", "exception_type"})
- 
+
     # points d'arrêt réels uniquement
     if "location_type" in stops.columns:
         stops = stops[stops.location_type.isin(["", "0"])]
@@ -231,12 +231,12 @@ def stops_from_gtfs(name, zip_path, wanted_date=None, label=None):
                          lon=pd.to_numeric(stops.stop_lon, errors="coerce"))
     stops = stops.dropna(subset=["lat", "lon"])
     stops = stops[(stops.lat != 0) | (stops.lon != 0)]
- 
+
     service_date = pick_service_date(calendar, calendar_dates, trips, wanted_date)
     print(f"[{label}] {len(stops)} arrêts, jour de référence : {service_date} ({DAYS[service_date.weekday()]})")
     active = active_services(calendar, calendar_dates, service_date)
     active_trips = set(trips.loc[trips.service_id.isin(active), "trip_id"])
- 
+
     # mode de chaque course (via sa ligne), puis de chaque arrêt
     routes["route_type"] = pd.to_numeric(routes.route_type, errors="coerce")
     trip_rt = trips.merge(routes[["route_id", "route_type"]], on="route_id", how="left") \
@@ -246,13 +246,13 @@ def stops_from_gtfs(name, zip_path, wanted_date=None, label=None):
     mode_counts = st.groupby(["stop_id", "rt"], dropna=False).size().reset_index(name="n")
     best = mode_counts.loc[mode_counts.groupby("stop_id").n.idxmax()].set_index("stop_id").rt
     stop_mode = best.map(mode_from_route_type)
- 
+
     # passages d'un mardi normal entre 6 h et 21 h
     t = st.departure_time.where(st.departure_time != "", st.arrival_time)
     hour = pd.to_numeric(t.str.slice(0, 2), errors="coerce")
     ok = st.trip_id.isin(active_trips) & (hour >= HOUR_MIN) & (hour < HOUR_MAX)
     passages = st[ok].groupby("stop_id").size()
- 
+
     out = pd.DataFrame({"stop_id": stops.stop_id.values,
                         "nom": stops.stop_name.values,
                         "lat": stops.lat.values, "lon": stops.lon.values})
@@ -260,31 +260,31 @@ def stops_from_gtfs(name, zip_path, wanted_date=None, label=None):
     out["nb_passages_jour"] = out.stop_id.map(passages).fillna(0).astype(int)
     out["reseau"] = name
     return out
- 
- 
+
+
 # ---------------------------------------------------------------- dédoublonnage
- 
+
 def connected_labels(xy, radius):
     """Regroupe les points reliés de proche en proche par des distances <= radius.
- 
+
     Équivaut à DBSCAN(eps=radius, min_samples=1), sans dépendre de scikit-learn."""
     n = len(xy)
     parent = list(range(n))
- 
+
     def find(i):
         while parent[i] != i:
             parent[i] = parent[parent[i]]
             i = parent[i]
         return i
- 
+
     for i, j in cKDTree(xy).query_pairs(radius):
         ri, rj = find(i), find(j)
         if ri != rj:
             parent[max(ri, rj)] = min(ri, rj)
     roots = np.array([find(i) for i in range(n)])
     return np.unique(roots, return_inverse=True)[1]
- 
- 
+
+
 def dedupe(df):
     """Fusionne les arrêts de même nom normalisé situés à moins de 50 m (en Lambert 93)."""
     df = df.reset_index(drop=True)
@@ -301,14 +301,14 @@ def dedupe(df):
         labels[pos] = cl + nxt
         nxt += cl.max() + 1
     df["cluster"] = labels
- 
+
     mode_tot = df.groupby(["cluster", "mode"]).nb_passages_jour.sum().reset_index()
     mode_best = mode_tot.loc[mode_tot.groupby("cluster").nb_passages_jour.idxmax()].set_index("cluster")["mode"]
     agg = df.groupby("cluster").agg(
         nom=("nom", lambda s: s.value_counts().index[0]),
         nom_norm=("nom_norm", "first"),
         nb_passages_jour=("nb_passages_jour", "sum"),
-        reseau=("reseau", lambda s: ",".join(sorted(set(s)))),
+        reseau=("reseau", lambda s: ",".join(sorted({r for v in s for r in v.split(",")}))),
         x=("x", "mean"), y=("y", "mean"),
         n_brut=("x", "size"),
     ).reset_index()
@@ -318,10 +318,10 @@ def dedupe(df):
         for n, x, y in zip(agg.nom_norm, agg.x, agg.y)
     ]
     return agg
- 
- 
+
+
 # ---------------------------------------------------------------- qualité
- 
+
 def residual_duplicates(final):
     """Paires restant à examiner après la fusion, sans suppression implicite."""
     xy = np.c_[final.geometry.x, final.geometry.y]
@@ -396,7 +396,7 @@ def publish_stops(final, report):
             raise
 
 
-def quality_report(final, n_brut, n_hors_territoire, contours_used, service_dates):
+def quality_report(final, n_brut, n_hors_territoire, contours_used, service_dates, echecs=()):
     lines = ["Rapport qualité - table arrets", "=" * 40,
              f"Arrêts bruts (tous réseaux)        : {n_brut}",
              f"Arrêts après dédoublonnage         : {len(final) + n_hors_territoire}",
@@ -409,13 +409,14 @@ def quality_report(final, n_brut, n_hors_territoire, contours_used, service_date
     lines.append(f"Arrêts sans mode ('autre')          : {(final['mode'] == 'autre').sum()}")
     lines.append(f"Arrêts à 0 passage                  : {(final.nb_passages_jour == 0).sum()}")
     lines.append(f"Jours de référence                  : {service_dates}")
+    lines.append("Réseaux en échec (ignorés)          : " + (", ".join(echecs) if echecs else "aucun"))
     lines.append("\nPar mode :\n" + final["mode"].value_counts().to_string())
     lines.append("\nPar réseau :\n" + final.reseau.value_counts().to_string())
     return "\n".join(lines)
- 
- 
+
+
 # ---------------------------------------------------------------- main
- 
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--date", help="jour de référence YYYY-MM-DD (un mardi), sinon choix automatique")
@@ -425,7 +426,7 @@ def main(argv=None):
                     help="utiliser un GTFS local au lieu du téléchargement (répétable)")
     ap.add_argument("--refresh", action="store_true", help="re-télécharger les GTFS")
     args = ap.parse_args(argv)
- 
+
     boundary = load_boundary(args.contours)
     wanted = datetime.strptime(args.date, "%Y-%m-%d").date() if args.date else None
     sources = []  # (réseau, étiquette du fichier, chemin)
@@ -443,7 +444,7 @@ def main(argv=None):
                 print(f"[{n}] ÉCHEC : {str(exc)[:150]}")
     if echecs:
         raise RuntimeError(f"Collecte incomplète : {', '.join(echecs)}. Fichiers silver conservés.")
- 
+
     frames = []
     for reseau, label, p in sources:
         try:
@@ -468,29 +469,34 @@ def main(argv=None):
         print(f"{(~valides).sum()} arrêt(s) sans coordonnées valides écartés")
         allstops = allstops[valides].reset_index(drop=True)
     n_brut = len(allstops)
- 
+
     # Lambert 93 pour toutes les couches
     pts = gpd.GeoSeries(gpd.points_from_xy(allstops.lon, allstops.lat), crs=4326).to_crs(CRS_LAMBERT93)
     allstops["x"], allstops["y"] = pts.x.values, pts.y.values
- 
+
     merged = dedupe(allstops)
+    for _ in range(5):  # la fusion déplace les points (moyenne) : on repasse tant que de nouveaux doublons apparaissent
+        again = dedupe(merged)
+        if len(again) == len(merged):
+            break
+        merged = again
     gdf = gpd.GeoDataFrame(merged, geometry=gpd.points_from_xy(merged.x, merged.y), crs=CRS_LAMBERT93)
- 
+
     inside = covers(boundary, gdf.geometry.to_numpy())
     n_hors = int((~inside).sum())
     gdf = gdf.loc[inside]
- 
+
     final = gdf[["arret_id", "nom", "mode", "nb_passages_jour", "reseau", "geometry"]] \
         .sort_values(["nom", "arret_id"]).reset_index(drop=True)
     validate_stops(final, boundary)
- 
+
     report = quality_report(final, n_brut, n_hors, bool(args.contours),
                             wanted or "automatique (mardi le plus chargé)")
     publish_stops(final, report)
     print(report)
     print(f"\nÉcrit : {SILVER / 'arrets.parquet'}")
- 
- 
+
+
 if __name__ == "__main__":
     try:
         main()

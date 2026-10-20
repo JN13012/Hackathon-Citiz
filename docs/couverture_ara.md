@@ -120,9 +120,10 @@ la restitution publique O1 utilise les groupes d'au moins 20 habitants.
 Joindre `id_candidat` à `gold_candidates.id_carreau` pour les caractéristiques
 du lieu ; joindre la colonne cible `id_carreau` à `carreaux_socio.id_carreau`
 pour les habitants couverts et aux projections du rôle 4 lorsqu'elles existent.
-Les projections annoncées portent sur moins de carreaux : contrôler les
-identifiants sans correspondance, sans les supprimer silencieusement ni leur
-attribuer une croissance inventée.
+Le script de projections intégré sur main utilise désormais les mêmes
+312 143 carreaux que le rôle 3. Contrôler néanmoins les identifiants et la
+version effectivement livrée avant jointure ; ne pas supprimer silencieusement
+les identifiants sans correspondance ni leur attribuer une croissance inventée.
 
 Exemple de population couverte par plusieurs candidats retenus :
 

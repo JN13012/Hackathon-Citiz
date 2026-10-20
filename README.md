@@ -67,13 +67,15 @@ docker compose build
 docker compose run --rm pipeline
 ```
 
-L'image utilise Python 3.15 sur Debian Trixie et installe les bibliothèques de `requirements.txt`,
-ainsi que `libgomp1` pour LightGBM. Le conteneur exécute
-`python scripts/run_all.py`, puis s'arrête. Les étapes actives construisent les
-arrêts, les stations partagées, les projections, les coûts et les tables
-`gold_offre` et `gold_candidates` lorsque leurs entrées sont disponibles.
-Le téléchargement des sources nécessite un accès Internet. Les scripts
-géomatiques se lancent séparément, avec les commandes du guide ci-dessous.
+ L'image utilise Python 3.12 sur Debian Trixie et installe les bibliothèques de `requirements.txt`,
+  ainsi que `libgomp1` pour LightGBM. Le conteneur exécute
+
+  `python scripts/run_all.py`, puis s'arrête. Les étapes actives construisent les
+  arrêts, la population par carreau (`carreaux_socio`), les stations partagées,
+  les projections, les coûts et les tables `gold_offre` et `gold_candidates`
+  lorsque leurs entrées sont disponibles. Le téléchargement des sources nécessite
+  un accès Internet. Les scripts géomatiques se lancent séparément, avec les
+  commandes du guide ci-dessous.
 
 La collecte GTFS exige les contours IGN (`data/silver/contours.parquet`). Si un
 réseau attendu échoue au téléchargement ou à la lecture, elle termine en erreur
@@ -142,8 +144,18 @@ séparément du code ; ils restent exclus de Git.
 ```bash
 python scripts/compter_stations_citiz.py   # compte stations et véhicules des réseaux Citiz (D1)
 python scripts/run_all.py                  # rejoue la chaîne bronze -> silver -> gold
+python model/build_carreaux.py --help      # Rôle 3 seul : carreaux_socio (INSEE, téléchargé dans data/bronze/insee/)
 python optim/build_offre_partagee.py       # Rôle 4 seul : stations partagées (idem build_projections, build_couts)
 ```
+
+## Dépannage
+
+**`SSL: CERTIFICATE_VERIFY_FAILED` au téléchargement (macOS).** Le Python installé depuis
+python.org n'a pas de certificats racine pour `urllib`. Les scripts utilisent désormais ceux de
+`certifi` (dans `requirements.txt`) : relancez `pip install -r requirements.txt`. Pour corriger
+Python une fois pour toutes : `open "/Applications/Python 3.12/Install Certificates.command"`.
+Derrière un réseau qui inspecte le HTTPS (école, entreprise), installez aussi `pip install truststore`
+pour utiliser le trousseau du système.
 
 ## Points de contrôle
 

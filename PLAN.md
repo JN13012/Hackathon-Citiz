@@ -225,11 +225,11 @@ Pas de données dans Git. Clé de jointure : identifiant de carreau INSEE 200 m 
 | Donnée | Script | Résultat |
 |---|---|---|
 | Flux GBFS Citiz de France (`backend.citiz.fr`, 18 réseaux) + autres flux GBFS du territoire (transport.data.gouv.fr) | `optim/build_offre_partagee.py` | `stations_partagees` : 620 Citiz (3 réseaux fusionnés + Citiz Développement), 901 stations vélo, 36 Clem en Auvergne-Rhône-Alpes ; `stations_partagees_france` (1 605 Citiz ouvertes) pour le modèle ; `stations_a_venir` (25 « Ouverture prochaine »). Exclus : free-floating (61 252 zones virtuelles, Getaround) et 2 stations Citiz non publiques (« Véhicules hors-circuit », « DEMOBOX »). |
-| Projections Omphale 2022 (central, basse, haute) | `optim/build_projections.py` | `projections` (12 départements, 2021 → 2030) ; `projections_carreaux` (311 648 carreaux, clé `id_carreau`). |
+| Projections Omphale 2022 (central, basse, haute) | `optim/build_projections.py` | `projections` (12 départements, 2021 → 2030) ; `projections_carreaux` (312 143 carreaux, mêmes carreaux, communes et populations que `carreaux_socio` du Rôle 3, clé `id_carreau`). |
 | Coûts des 3 équipements | `optim/couts.yaml` → `optim/build_couts.py` | `couts` (14 postes : 11 sourcés, 1 hypothèse, 2 inclus dans un autre poste), dont la variante électrique (borne − ADVENIR) ; `couts_equipements` (bas / central / haut) ; `tarifs_citiz` et `marge_citiz` (recettes GBFS, pessimiste / central / optimiste). |
 
-Coût annualisé, scénario central : arrêt de bus ≈ 1 200 €/an, station Citiz ≈ 9 600 €/an (électrique ≈ 9 950 €), station vélo (10 vélos) ≈ 23 400 €/an.
-Recette d'une station Citiz (central, 1 location/jour) ≈ 8 580 € HT/an, marge ≈ −1 000 €/an (pessimiste −9 800 €, optimiste +24 800 €) : entrée de la péréquation (bonus).
+Coût annualisé, scénario central, en euros constants 2025 : arrêt de bus ≈ 1 200 €/an, station Citiz ≈ 9 700 €/an (électrique ≈ 10 050 €, prime ADVENIR déduite), station vélo (10 vélos) ≈ 28 400 €/an.
+Recette d'une station Citiz (central, 1 location/jour) ≈ 8 580 € HT/an, marge ≈ −1 100 €/an (pessimiste −9 900 €, optimiste +24 800 €) : entrée de la péréquation (bonus).
 *Terminé quand* : toutes les stations sont dans le territoire ✅ et chaque coût a une source ou la mention « hypothèse » ✅.
 
 **Étape 2 · Construire**
@@ -254,6 +254,8 @@ Recette d'une station Citiz (central, 1 location/jour) ≈ 8 580 € HT/an, marg
 | `SOURCES.md` et dictionnaire | Ce dépôt | Chaque table livrée y figure. |
 
 **Résultat attendu** : `ratios_co2` (une ligne par ratio : `valeur`, `unite`, `source`, `page`) et un `SOURCES.md` complet.
+
+**✅ Fait** (`restitution/ratios_co2.yaml` → `restitution/build_ratios_co2.py`) : 13 ratios, 7 de l'enquête ADEME 2022 (avec page) et 6 facteurs Impact CO₂ (ADEME), contrôlés contre le relevé gardé en bronze ; le script vérifie aussi que chaque table produite figure au dictionnaire. Ordre de grandeur : une voiture en autopartage évite 4 600 à 19 600 km de voiture par an, soit 0,5 à 2,2 t CO₂e/an.
 
 **Étape 2 · Construire**
 
