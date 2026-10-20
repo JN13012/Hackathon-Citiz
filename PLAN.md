@@ -255,6 +255,8 @@ Recette d'une station Citiz (central, 1 location/jour) ≈ 8 580 € HT/an, marg
 
 **Résultat attendu** : `ratios_co2` (une ligne par ratio : `valeur`, `unite`, `source`, `page`) et un `SOURCES.md` complet.
 
+**✅ Fait** (`restitution/ratios_co2.yaml` → `restitution/build_ratios_co2.py`) : 13 ratios, 7 de l'enquête ADEME 2022 (avec page) et 6 facteurs Impact CO₂ (ADEME), contrôlés contre le relevé gardé en bronze ; le script vérifie aussi que chaque table produite figure au dictionnaire. Ordre de grandeur : une voiture en autopartage évite 4 600 à 19 600 km de voiture par an, soit 0,5 à 2,2 t CO₂e/an.
+
 **Étape 2 · Construire**
 
 | Tâche | Résultat attendu | Échéance |

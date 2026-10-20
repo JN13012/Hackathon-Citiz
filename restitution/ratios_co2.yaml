@@ -1,0 +1,48 @@
+# Ratios pour le CO₂ évité et l'argumentaire (Rôle 5). Validé et converti en table silver par
+# restitution/build_ratios_co2.py. Chaque ratio a une source et une page, ou la mention "hypothèse".
+#   valeur       : valeur retenue (milieu de la fourchette publiée quand la source donne min et max)
+#   min / max    : fourchette de la source, pour la sensibilité
+#   page         : page du rapport, ou point d'accès de l'API
+
+sources:
+  ademe_autopartage_2022:
+    titre: "Enquête nationale sur l'autopartage 2022 (6t-bureau de recherche pour l'ADEME), 165 p., septembre 2022"
+    url: "https://www.ort.bourgogne-franche-comte.developpement-durable.gouv.fr/IMG/pdf/enquete-autopartage-2022-rapport.pdf"
+    notice: "https://librairie.ademe.fr/mobilite-et-transport/5804-enquete-autopartage-2022.html"
+    fichier: data/bronze/ademe/enquete-autopartage-2022-rapport.pdf
+  impact_co2:
+    titre: "Impact CO₂ (ADEME), API transport, facteurs pour 1 km, issus de la Base Empreinte"
+    url: "https://impactco2.fr/api/v1/transport?km=1&displayAll=1"
+    notice: "https://impactco2.fr/methodologie"
+    fichier: data/bronze/ademe/impactco2_transport_1km.json
+    consulte_le: "2026-10-20"
+
+ratios:
+  # --- Autopartage en boucle (stations), comme Citiz
+  - {ratio: voitures_remplacees_par_voiture_partagee, valeur: 6.5, min: 5, max: 8, unite: "voitures personnelles / voiture en autopartage",
+     source: ademe_autopartage_2022, page: "76", note: "« Une voiture en autopartage remplace 5 à 8 voitures personnelles »"}
+  - {ratio: voitures_abandonnees_par_utilisateur, valeur: 0.365, min: 0.29, max: 0.44, unite: "voiture / autopartageur actif",
+     source: ademe_autopartage_2022, page: "76", note: "démotorisation liée à l'autopartage, autopartage en boucle"}
+  - {ratio: utilisateurs_actifs_par_voiture, valeur: 17, min: 16, max: 18, unite: "autopartageurs actifs / voiture",
+     source: ademe_autopartage_2022, page: "79", note: "12 derniers mois"}
+  - {ratio: places_voirie_liberees_par_voiture, valeur: 1.95, min: 0.9, max: 3, unite: "places de stationnement en voirie / voiture en autopartage",
+     source: ademe_autopartage_2022, page: "79"}
+  - {ratio: km_parcourus_par_voiture_partagee, valeur: 15130, unite: "km / an / voiture en autopartage",
+     source: ademe_autopartage_2022, page: "81", note: "données des opérateurs"}
+  - {ratio: km_voiture_evites_par_voiture_partagee, valeur: 12100, min: 4600, max: 19600, unite: "km de voiture personnelle évités / an / voiture en autopartage",
+     source: ademe_autopartage_2022, page: "82", note: "autopartage en boucle ; ratio central pour le CO₂ évité par une station Citiz"}
+  - {ratio: km_voiture_evites_par_utilisateur, valeur: 972, min: 684, max: 1260, unite: "km de voiture personnelle évités / an / autopartageur",
+     source: ademe_autopartage_2022, page: "68", note: "57 à 105 km par mois (-25 à -33 %), x 12"}
+  # --- Facteurs d'émission (kg CO₂e par km)
+  - {ratio: facteur_voiture_thermique, valeur: 0.1106, unite: "kg CO₂e / km (voiture, 1 occupant)",
+     source: impact_co2, page: "API /transport, id 4 « Voiture thermique »", note: "covoiturage à 2 = moitié : valeur par véhicule.km"}
+  - {ratio: facteur_voiture_electrique, valeur: 0.0121, unite: "kg CO₂e / km (voiture, 1 occupant)",
+     source: impact_co2, page: "API /transport, id 5 « Voiture électrique »"}
+  - {ratio: facteur_bus_thermique, valeur: 0.1135, unite: "kg CO₂e / passager.km",
+     source: impact_co2, page: "API /transport, id 9 « Bus thermique »"}
+  - {ratio: facteur_tramway, valeur: 0.0038, unite: "kg CO₂e / passager.km",
+     source: impact_co2, page: "API /transport, id 10 « Tramway »"}
+  - {ratio: facteur_velo_electrique, valeur: 0.00223, unite: "kg CO₂e / km",
+     source: impact_co2, page: "API /transport, id 8 « Vélo à assistance électrique »"}
+  - {ratio: facteur_velo_mecanique, valeur: 0, unite: "kg CO₂e / km",
+     source: impact_co2, page: "API /transport, id 7 « Vélo mécanique »", note: "vrai zéro selon la source (pas une valeur manquante)"}

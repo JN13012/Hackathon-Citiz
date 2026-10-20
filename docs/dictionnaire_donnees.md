@@ -20,7 +20,7 @@ Conventions : colonnes en `snake_case`, géométries en Lambert 93 (EPSG:2154), 
 | `stations_a_venir` | 4 | une station annoncée « Ouverture prochaine » (France) | mêmes colonnes que `stations_partagees_france` | idem ; aucune en ARA au 19/10/2026 |
 | `tarifs_citiz` | 4 | une formule tarifaire Citiz (GBFS `system_pricing_plans`) | `system_id`, `plan_id`, `nom`, `prix_fixe`, `taxable`, `prix_location_type` (TTC, location type de `couts.yaml`), `reference` (formule retenue par réseau) | aucun |
 | `marge_citiz` | 4 | une station Citiz (ou électrique) x un scénario (pessimiste, central, optimiste) | `type_equipement`, `scenario`, `recette_annuelle`, `cout_annualise`, `marge_annuelle` (€ HT/an) | aucun ; usage = hypothèse |
-| `ratios_co2` | 5 | un ratio | `valeur`, `unite`, `source`, `page` | à remplir |
+| `ratios_co2` | 5 | un ratio | `ratio`, `valeur`, `unite`, `source`, `page` ; en plus : `min`, `max` (fourchette de la source), `titre_source`, `url`, `note` | `min`/`max` vides quand la source ne donne qu'une valeur ; `facteur_velo_mecanique` = 0 (vrai zéro selon la source) |
 
 ## Tables gold
 
