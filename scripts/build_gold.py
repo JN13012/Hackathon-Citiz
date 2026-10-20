@@ -1,14 +1,3 @@
-"""Rôle 1 (Data engineer) : construit les tables gold `gold_offre` et `gold_candidates`.
-
-gold_offre      : un point par arrêt ou station.
-                  Colonnes : offre_id, source, type, nom, operateur, valeur, unite, geometry (Lambert 93)
-                  - arrêts (silver/arrets)              -> type = bus, tram, metro...  valeur = passages/jour
-                  - stations (silver/stations_partagees) -> type = velo, trottinette, citiz...  valeur = capacité
-gold_candidates : centroïdes des carreaux peuplés (silver/carreaux_socio), avec id_carreau.
-
-Chaque table d'entrée est facultative : ce qui manque est signalé, le reste est construit.
-Usage : python scripts/build_gold.py
-"""
 from pathlib import Path
 
 import geopandas as gpd
@@ -58,11 +47,11 @@ def offre_from_stations(stations):
 
 def candidates_from_carreaux(carreaux, population_min=1):
     peuples = carreaux[carreaux["population"].fillna(0) >= population_min]
-    return gpd.GeoDataFrame({
-        "id_carreau": peuples["id_carreau"],
-        "population": peuples["population"],
-        "geometry": peuples.geometry.centroid,
-    }, crs=CRS).reset_index(drop=True)
+    colonnes = {"id_carreau": peuples["id_carreau"], "population": peuples["population"]}
+    for c in ("code_commune", "faible_population", "part_menages_sans_voiture"):  # utiles aux rôles 2, 3 et 4
+        if c in peuples:
+            colonnes[c] = peuples[c]
+    return gpd.GeoDataFrame(colonnes, geometry=peuples.geometry.centroid, crs=CRS).reset_index(drop=True)
 
 
 def write_gold(gdf, name):
