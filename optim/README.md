@@ -26,6 +26,8 @@
   Doublons `system_id` + `station_id` retirés ; capacité 0, < 0 ou > 150 -> vide.
   Résultat ARA (19/10/2026) : 620 stations Citiz (129 communes), 901 stations vélo, 36 Clem.
 - **Projections** : Omphale 2022 (central, basse, haute), 2021 -> 2030, appliqué à chaque carreau via son département.
+  Carreaux retenus avec la même règle que `carreaux_socio` (Rôle 3) : une commune de `lcog_geo` dans le territoire,
+  rattachement à la première ; filtre par département pour une région (Filosofi est au COG 2021). Jointure à 100 %.
 - **Coûts** : `couts.yaml`, chaque montant sourcé (url) ou « hypothèse », avec min / max pour la sensibilité.
   Variante `station_citiz_electrique` : + borne de recharge, − prime ADVENIR voirie (advenir.mobi : 30 % du coût HT,
   plafond 1 000 à 9 000 € HT par point), calculée sur la borne de chaque scénario. Éligibilité : borne ouverte à tout

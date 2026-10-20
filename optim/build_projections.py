@@ -27,6 +27,7 @@ SCENARIOS = {"central": "central", "basse": "population_basse", "haute": "popula
 OMPHALE_URL = "https://www.insee.fr/fr/statistiques/fichier/6652134/projections_scenario_{}.xlsx"
 FILOSOFI_URL = "https://www.insee.fr/fr/statistiques/fichier/8735162/Filosofi2021_carreaux_200m_csv.zip"
 IDCAR = re.compile(r"CRS(\d+)RES200mN(\d+)E(\d+)")
+LCOG_CODE = re.compile(r"[0-9][0-9AB][0-9]{3}")  # codes commune concaténés dans lcog_geo (ex. 2A041)
 
 
 def download(url, path):
@@ -63,9 +64,21 @@ def load_omphale():
     return proj.reset_index().astype({"pop_depart": "int64", "pop_2030": "int64"})
 
 
-def load_carreaux(deps):
-    """Filosofi 2021 des départements `deps` : id du carreau, commune, population ; centre en Lambert 93.
-    Lecture par blocs : seuls les carreaux du territoire restent en mémoire."""
+def commune_of(code):
+    """Commune (code geo.api) d'un code Filosofi : Paris, Lyon et Marseille y sont en arrondissements."""
+    if code.startswith("6938"):
+        return "69123"
+    if code.startswith("751"):
+        return "75056"
+    if code.startswith("132") and code != "13200":
+        return "13055"
+    return code
+
+
+def load_carreaux(in_territory):
+    """Filosofi 2021 du territoire : id du carreau, commune, population ; centre en Lambert 93.
+    Même règle que le Rôle 3 (carreaux_socio) : un carreau est gardé si une des communes de `lcog_geo`
+    est dans le territoire (`in_territory(code)`), et rattaché à la première d'entre elles. Lecture par blocs."""
     path = download(FILOSOFI_URL, T.BRONZE / "filosofi" / "Filosofi2021_carreaux_200m_csv.zip")
     parts = []
     with zipfile.ZipFile(path) as z:
@@ -73,12 +86,15 @@ def load_carreaux(deps):
             with z.open(name) as f:
                 for chunk in pd.read_csv(f, usecols=["idcar_200m", "lcog_geo", "ind"], chunksize=500_000,
                                          dtype={"idcar_200m": str, "lcog_geo": str}):
-                    # carreau à cheval sur plusieurs communes : lcog_geo les concatène, on garde la première
-                    chunk["commune"] = chunk.pop("lcog_geo").str[:5]
-                    chunk["dep"] = T.dep_of(chunk["commune"])
-                    parts.append(chunk[chunk["dep"].isin(deps)])
+                    codes = chunk.pop("lcog_geo").fillna("").str.findall(LCOG_CODE)
+                    chunk["commune"] = codes.map(
+                        lambda cs: next((c for c in cs if in_territory(c)), None))
+                    chunk = chunk[chunk["commune"].notna()]
+                    chunk["multi_communes"] = codes.loc[chunk.index].str.len() > 1
+                    parts.append(chunk)
     df = pd.concat(parts, ignore_index=True).rename(columns={"idcar_200m": "id_carreau",
                                                              "ind": "population_2021"})
+    df["dep"] = T.dep_of(df["commune"])
     xy = df["id_carreau"].str.extract(IDCAR).astype({0: int, 1: float, 2: float})
     parts = []
     for crs, idx in xy.groupby(0).groups.items():  # 3035 en métropole, CRS locaux pour les DROM
@@ -98,16 +114,23 @@ def main():
     deps = sorted(set(communes["dep"]))
     proj = proj_fr[proj_fr["dep"].isin(deps)].reset_index(drop=True)
 
-    car = load_carreaux(deps)
-    car, n_out = T.clip(car, communes.drop(columns="nom_commune").assign(nom_commune=None))
-    car = car.drop(columns="nom_commune")
+    # Région ou départements entiers : filtre par département, comme le Rôle 3 (Filosofi est au COG 2021 :
+    # les communes fusionnées depuis n'existent plus dans geo.api). Sinon : liste des communes.
+    if args.contours is None and T.NIVEAU in ("region", "departement"):
+        dep_set = set(deps)
+        in_territory = lambda code: (code[:3] if code.startswith("97") else code[:2]) in dep_set
+    else:
+        codes = set(communes["commune"])
+        in_territory = lambda code: commune_of(code) in codes
+    car = load_carreaux(in_territory)
+    n_multi = int(car["multi_communes"].sum())
     rates = proj.set_index("dep")
     for scenario in SCENARIOS:
         col = "taux_croissance" if scenario == "central" else f"taux_croissance_{scenario}"
         suffix = "" if scenario == "central" else f"_{scenario}"
         # département absent d'Omphale -> vide, jamais 0
         car[f"population_{HORIZON}{suffix}"] = car["population_2021"] * (1 + car["dep"].map(rates[col]))
-    car = car[["id_carreau", "commune", "dep", "population_2021", f"population_{HORIZON}",
+    car = car[["id_carreau", "commune", "dep", "multi_communes", "population_2021", f"population_{HORIZON}",
                f"population_{HORIZON}_basse", f"population_{HORIZON}_haute", "geometry"]].reset_index(drop=True)
     assert car["id_carreau"].is_unique
 
@@ -122,7 +145,7 @@ def main():
     lines = ["Rapport qualité - tables projections et projections_carreaux", "=" * 60,
              f"Départements du territoire           : {len(proj)}",
              f"Carreaux du territoire               : {len(car)}",
-             f"Carreaux du département hors contour : {n_out}",
+             f"Carreaux sur plusieurs communes      : {n_multi}  (rattachés à la première du territoire, règle du Rôle 3)",
              f"Population 2021 Filosofi / Omphale   : {car['population_2021'].sum():,.0f} / {proj['pop_depart'].sum():,.0f}",
              f"Population {HORIZON} (central, carreaux)   : {car[f'population_{HORIZON}'].sum():,.0f}",
              f"Carreaux sans projection             : {car[f'population_{HORIZON}'].isna().sum()}  (attendu : 0)",
