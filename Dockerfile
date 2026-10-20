@@ -1,7 +1,3 @@
-# Lancer Docker
-# docker compose build
-# docker compose run --rm pipeline
-
 FROM python:3.15-slim-trixie
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

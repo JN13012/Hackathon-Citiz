@@ -116,26 +116,6 @@ Réseaux téléchargés par `scripts/build_arrets.py` (Rôle 1), 19 jeux de donn
 | Enquête nationale sur l'autopartage (ADEME, édition la plus récente) | https://www.ademe.fr | à vérifier |
 | Facteur d'émission d'une voiture par km (ADEME, Base Empreinte) | https://base-empreinte.ademe.fr | à relever |
 
-## Coûts des équipements
-
-Aucun montant n'est fourni par le sujet. Chaque valeur de `optim/couts.yaml` doit avoir une source ici, sinon elle est marquée « hypothèse ».
-
-| Poste | Source | Équipement |
-|---|---|---|
-| Véhicule (35 000 €), habillage (3 000 €), création de station (6 000 €), exploitation (2 000 €/an) | Grand Périgueux, délibération DD2024-045 : https://grandperigueux.fr/fileadmin/medias/Publications/Deliberations/2024/Conseil_du_30_mai_2024/DD2024-045_PERIMOUV__SERVICE_AUTOPARTAGE_PERIVOIT.pdf | station Citiz |
-| Boîtier télématique (4 000 €/véhicule) | Pôle métropolitain du Genevois français, convention CS2023-03.2 : https://genevoisfrancais.org/wp-content/uploads/CS2023_03.2-MAJ-CONVENTION-DEPLOIMENT-AUTOPARTAGE_annexe-1.pdf | station Citiz |
-| Vélos et station (2 500-3 000 €/vélo), exploitation (1 500-2 500 €/vélo/an) | Manuel OBIS, synthèse EPOMM : https://epomm.eu/sites/default/files/eupdates/1210_bikesharing_fr.pdf | station vélo |
-| Coût total 2 000-3 000 €/vélo/an (enquête GART), contrôle de cohérence | Banque des Territoires : https://www.banquedesterritoires.fr/velos-en-libre-service-un-bilan-coutsavantages-juge-globalement-equilibre | station vélo |
-| Accessibilité PMR d'un arrêt (5 500-13 700 €) | Beyne-Heusay (BE) : https://beyne-heusay.be/sites/default/files/documents/news/Tableau-de-bord%20.pdf | arrêt de bus |
-| Abri voyageurs (1 500-8 000 €, source commerciale) | HelloPro : https://conseils.hellopro.fr/quel-fabricant-d-abri-bus-choisir-1461.html | arrêt de bus |
-| Borne de recharge 7,4-22 kW et installation (2 900-7 200 €, source commerciale) | HelloPro : https://conseils.hellopro.fr/combien-coute-une-borne-de-recharge-pour-vehicules-electriques-1249.html | station Citiz électrique |
-| Borne 22/24 kW sur voirie, 22 000 € TTC aides déduites (borne haute) | Roannais Agglomération, délibération de Riorges DCM 2022-69 : https://www.riorges.fr/images/deliberations/DCM_2022_69_Conv_bornes_IRVE.pdf | station Citiz électrique |
-| Prime ADVENIR voirie : 30 % du HT, plafond 1 000-1 900 € HT par point (2025) | TotalEnergies : https://www.totalenergies.fr/particuliers/recharge-voiture-electrique/la-prime-advenir ; barème 2026 : https://www.isiohm.fr/prime-advenir ; **à confirmer sur https://advenir.mobi** | station Citiz électrique |
-| Tarifs publics Citiz (recettes) | flux GBFS `system_pricing_plans`, ex. https://backend.citiz.fr/public/provider/5/gbfs/v3.0/system_pricing_plans.json | station Citiz |
-| Taux normal de TVA (20 %) | https://www.impots.gouv.fr/professionnel/questions/quels-sont-les-taux-de-tva-en-vigueur-en-france-et-dans-lunion-europeenne | recettes HT |
-| Entretien d'un arrêt (500 €/an), dimensionnement des stations, durées de vie, usage d'une station Citiz (1 location/jour, 3 h, 30 km) | **hypothèse** (voir `optim/couts.yaml`) | tous |
-
-
 ## O1 et O2 — calcul local Grenoble du 20 octobre 2026
 
 `geo/build_accessibilite.py` croise la population Filosofi 2021 livrée par le
@@ -162,3 +142,22 @@ cartographiques ne déterminent pas la desserte. Aucun flux de stations vélo
 n'est présent dans les données du pilote Grenoble ; cela ne démontre pas
 l'absence de service vélo sur le terrain. Les limites du réseau OSM et du champ
 Filosofi restent applicables.
+
+## Coûts des équipements
+
+Aucun montant n'est fourni par le sujet. Chaque valeur de `optim/couts.yaml` doit avoir une source ici, sinon elle est marquée « hypothèse ».
+
+| Poste | Source | Équipement |
+|---|---|---|
+| Véhicule (35 000 €), habillage (3 000 €), création de station (6 000 €), exploitation (2 000 €/an) | Grand Périgueux, délibération DD2024-045 : https://grandperigueux.fr/fileadmin/medias/Publications/Deliberations/2024/Conseil_du_30_mai_2024/DD2024-045_PERIMOUV__SERVICE_AUTOPARTAGE_PERIVOIT.pdf | station Citiz |
+| Boîtier télématique (4 000 €/véhicule) | Pôle métropolitain du Genevois français, convention CS2023-03.2 : https://genevoisfrancais.org/wp-content/uploads/CS2023_03.2-MAJ-CONVENTION-DEPLOIMENT-AUTOPARTAGE_annexe-1.pdf | station Citiz |
+| Vélos et station (2 500-3 000 €/vélo), exploitation (1 500-2 500 €/vélo/an) | Manuel OBIS, synthèse EPOMM : https://epomm.eu/sites/default/files/eupdates/1210_bikesharing_fr.pdf | station vélo |
+| Coût total 2 000-3 000 €/vélo/an (enquête GART), contrôle de cohérence | Banque des Territoires : https://www.banquedesterritoires.fr/velos-en-libre-service-un-bilan-coutsavantages-juge-globalement-equilibre | station vélo |
+| Accessibilité PMR d'un arrêt (5 500-13 700 €) | Beyne-Heusay (BE) : https://beyne-heusay.be/sites/default/files/documents/news/Tableau-de-bord%20.pdf | arrêt de bus |
+| Abri voyageurs (1 500-8 000 €, source commerciale) | HelloPro : https://conseils.hellopro.fr/quel-fabricant-d-abri-bus-choisir-1461.html | arrêt de bus |
+| Borne de recharge 7,4-22 kW et installation (2 900-7 200 €, source commerciale) | HelloPro : https://conseils.hellopro.fr/combien-coute-une-borne-de-recharge-pour-vehicules-electriques-1249.html | station Citiz électrique |
+| Borne 22/24 kW sur voirie, 22 000 € TTC aides déduites (borne haute) | Roannais Agglomération, délibération de Riorges DCM 2022-69 : https://www.riorges.fr/images/deliberations/DCM_2022_69_Conv_bornes_IRVE.pdf | station Citiz électrique |
+| Prime ADVENIR voirie : 30 % du HT, plafond 1 000-1 900 € HT par point (2025) | TotalEnergies : https://www.totalenergies.fr/particuliers/recharge-voiture-electrique/la-prime-advenir ; barème 2026 : https://www.isiohm.fr/prime-advenir ; **à confirmer sur https://advenir.mobi** | station Citiz électrique |
+| Tarifs publics Citiz (recettes) | flux GBFS `system_pricing_plans`, ex. https://backend.citiz.fr/public/provider/5/gbfs/v3.0/system_pricing_plans.json | station Citiz |
+| Taux normal de TVA (20 %) | https://www.impots.gouv.fr/professionnel/questions/quels-sont-les-taux-de-tva-en-vigueur-en-france-et-dans-lunion-europeenne | recettes HT |
+| Entretien d'un arrêt (500 €/an), dimensionnement des stations, durées de vie, usage d'une station Citiz (1 location/jour, 3 h, 30 km) | **hypothèse** (voir `optim/couts.yaml`) | tous |

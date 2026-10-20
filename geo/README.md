@@ -264,6 +264,12 @@ n'est présentée comme une accessibilité calculée.
 | `apercu_isochrones.html` | Carte locale interactive : sélectionner un arrêt pour voir ses chemins et sa zone ; ouverture directe dans un navigateur, sans serveur |
 | `isochrones_qc.json` | Paramètres, effectifs, exclusions, limites et empreintes SHA-256 des sources |
 
+Le dossier local `isochrones_grenoble_arrets` provient du premier jeu d'arrêts,
+avant l'import Teams du 20 octobre. Ces exports historiques n'ont pas été
+recalculés après cet import ; vérifier leur rapport et l'empreinte source avant
+une jointure. Les indicateurs O1/O2 ci-dessous utilisent la livraison actuelle
+et routent directement les paires de points.
+
 Les tables conservent `origine_id`, `type_origine`, `nom_origine`, `duree_s`,
 `vitesse_kmh`, `distance_raccordement_m`, `temps_acces_s`, les identifiants
 `raccord_de`, `raccord_vers`, `raccord_cle`, l'abscisse sur la ligne et les

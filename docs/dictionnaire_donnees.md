@@ -36,6 +36,8 @@ Conventions : colonnes en `snake_case`, géométries en Lambert 93 (EPSG:2154), 
 
 ## Règles de qualité
 
+### Isochrones du pilote
+
 Le pilote des isochrones conserve `origine_id`, `type_origine` et l'identifiant
 source (`arret_id` ou `id_carreau`), avec `duree_s`, `vitesse_kmh`,
 `distance_raccordement_m`, `temps_acces_s`, `tampon_m`, `surface_m2` et `geometry`.
@@ -43,13 +45,7 @@ Les origines sans calcul ont un statut dans `origines_qc.parquet` et ne produise
 pas de polygone. `chemins_accessibles.parquet` conserve les portions routées ;
 les surfaces tamponnées servent à la cartographie, pas à prouver un accès au bâti.
 
-- Aucun doublon d'arrêt de même nom à moins de 50 m.
-- Tous les points sont dans le territoire.
-- Chaque coût et chaque ratio a une source ou la mention « hypothèse ».
-- Somme de la population des carreaux proche de la population INSEE du territoire.
-
-
-## Détail O1/O2 — pilote Grenoble
+### Détail O1/O2 — pilote Grenoble
 
 Dossier : `data/gold/accessibilite_grenoble/`. Formats GeoParquet (EPSG:2154),
 CSV sans géométrie et GeoJSON (EPSG:4326). Les codes et identifiants sont du texte.
@@ -79,3 +75,10 @@ leur centre, sans correction de leur population. Les populations O2 se
 recouvrent entre stations : ne pas les additionner pour une population unique.
 La somme des populations O1 doit être égale à celle des carreaux sélectionnés,
 pas forcée à une population administrative de référence.
+
+### Règles communes
+
+- Aucun doublon d'arrêt de même nom à moins de 50 m.
+- Tous les points sont dans le territoire.
+- Chaque coût et chaque ratio a une source ou la mention « hypothèse ».
+- Somme de la population des carreaux proche de la population INSEE du territoire.

@@ -69,9 +69,11 @@ docker compose run --rm pipeline
 
 L'image utilise Python 3.15 sur Debian Trixie et installe les bibliothèques de `requirements.txt`,
 ainsi que `libgomp1` pour LightGBM. Le conteneur exécute
-`python scripts/run_all.py`, puis s'arrête. À ce stade, seule la construction de la
-table `arrets` est active dans le pipeline ; les autres étapes seront ajoutées par
-l'équipe. Le téléchargement des sources nécessite un accès Internet.
+`python scripts/run_all.py`, puis s'arrête. Les étapes actives construisent les
+arrêts, les stations partagées, les projections, les coûts et les tables
+`gold_offre` et `gold_candidates` lorsque leurs entrées sont disponibles.
+Le téléchargement des sources nécessite un accès Internet. Les scripts
+géomatiques se lancent séparément, avec les commandes du guide ci-dessous.
 
 Le dossier local `data/` est monté dans `/app/data` : les données téléchargées et les
 résultats restent disponibles dans `data/bronze/`, `data/silver/` et `data/gold/`,
@@ -96,6 +98,25 @@ LOCAL_UID=$(id -u) LOCAL_GID=$(id -g) docker compose run --rm pipeline
 Après une modification du code ou de `requirements.txt`, relancez
 `docker compose build`. Les versions des dépendances ne sont pas encore figées :
 deux constructions à des dates différentes peuvent installer des versions différentes.
+
+## Pilote géomatique Grenoble
+
+Les contours IGN couvrent l'Auvergne-Rhône-Alpes. Le réseau piéton et les calculs
+d'accessibilité couvrent actuellement Grenoble avec ses communes voisines utiles
+aux trajets. Les étapes et paramètres sont décrits dans le [guide géomatique](geo/README.md).
+
+Avec les contours, le réseau, `carreaux_socio.parquet` et `gold_offre.parquet`
+déjà présents dans `data/`, recalculer les indicateurs du pilote :
+
+```bash
+docker compose run --rm pipeline python geo/build_accessibilite.py \
+  --codes-communes 38185
+```
+
+Les sorties sont dans `data/gold/accessibilite_grenoble/` : tableaux, carte HTML
+et rapports de contrôle. Voir le [bilan Grenoble](docs/resultats_geomatique_grenoble.md)
+pour les résultats et les limites. Les données et résultats sont partagés
+séparément du code ; ils restent exclus de Git.
 
 ## Exécution
 
