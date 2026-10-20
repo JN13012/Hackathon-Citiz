@@ -3,7 +3,8 @@
 Lit optim/couts.yaml, vérifie que chaque montant a une source ou la mention « hypothèse »,
 puis calcule pour chaque équipement (et ses variantes, ex. station_citiz_electrique) et chaque
 scénario (bas / central / haut) : investissement initial net des aides et coût annualisé
-= investissement / durée de vie + exploitation.
+= investissement / durée de vie + exploitation. Tous les montants sont en euros constants
+(année de référence de couts.yaml, indice des prix INSEE).
 Recettes Citiz : tarifs publics GBFS (system_pricing_plans) des réseaux Citiz du territoire,
 appliqués à une location type (hypothèses de couts.yaml), d'où une marge annuelle par station.
 
@@ -38,7 +39,8 @@ MARGIN_SCENARIOS = {"pessimiste": ("bas", "haut"), "central": ("central", "centr
 QUANTITY_BY_UNIT = {"véhicule": "vehicules_par_station", "vélo": "vehicules_par_station",
                     "place": "places_par_station"}  # station, arrêt : x 1
 COLUMNS = ["type_equipement", "poste", "montant", "unite", "source", "statut", "min", "max",
-           "nature", "quantite", "duree_vie_ans", "inclus_dans", "option", "aide", "annee", "url", "note"]
+           "nature", "quantite", "duree_vie_ans", "inclus_dans", "option", "aide", "taux", "base", "plafond",
+           "annee", "coef_euros_constants", "montant_courant", "url", "note"]
 REFERENCE_PLAN = ("sans abonnement", "grand public")  # formule sans engagement
 
 
@@ -57,8 +59,22 @@ def load_postes(spec):
     df = pd.DataFrame(rows).reindex(columns=COLUMNS)
     df["statut"] = df["source"].map(lambda s: "hypothèse" if s == "hypothèse" else "source")
     df["aide"] = df["aide"].fillna(False).astype(bool)
-    for col in ("montant", "min", "max", "duree_vie_ans", "quantite"):
+    for col in ("montant", "min", "max", "duree_vie_ans", "quantite", "taux", "plafond"):
         df[col] = pd.to_numeric(df[col])
+    # euros courants de l'année de la source -> euros constants de l'année de référence
+    ref, ipc = spec["euros_constants"]["annee_reference"], spec["euros_constants"]["ipc"]
+    last = max(ipc)
+    df["coef_euros_constants"] = df["annee"].map(lambda y: ipc[ref] / ipc[min(int(y), last)] if pd.notna(y) else 1.0)
+    df["montant_courant"] = df["montant"]
+    for col in ("montant", "min", "max", "plafond"):
+        df[col] = df[col] * df["coef_euros_constants"]
+    # aide proportionnelle (ex. ADVENIR) : -min(taux x poste de base, plafond), scénario par scénario
+    for i in df.index[df["aide"] & df["taux"].notna()]:
+        base = df[(df["type_equipement"] == df.at[i, "type_equipement"]) & (df["poste"] == df.at[i, "base"])]
+        if len(base) == 1:
+            for col in SCENARIOS.values():
+                df.at[i, col] = -min(df.at[i, "taux"] * base[col].iloc[0], df.at[i, "plafond"])
+    df[["montant", "min", "max"]] = df[["montant", "min", "max"]].round(0)
     df["annee"] = df["annee"].astype("Int64")
     return df
 
@@ -72,7 +88,11 @@ def validate(df):
     check((df["statut"] == "source") & df["url"].isna(), "source sans url")
     check(counted & ~df["aide"] & ~(df["montant"] > 0), "montant manquant ou <= 0")
     check(counted & df["aide"] & ~(df["montant"] < 0), "une aide doit être négative")
-    check(counted & ~((df["min"] <= df["montant"]) & (df["montant"] <= df["max"])), "il faut min <= montant <= max")
+    check(counted & ~df["aide"] & ~((df["min"] <= df["montant"]) & (df["montant"] <= df["max"])), "il faut min <= montant <= max")
+    known = set(zip(df["type_equipement"], df["poste"]))
+    check(df["aide"] & df["taux"].notna() & ~pd.Series([(e, b) in known for e, b in zip(df["type_equipement"], df["base"])],
+                                                       index=df.index), "aide : poste `base` inconnu")
+    check(df["aide"] & df["taux"].notna() & ~(df["taux"].between(0, 1) & (df["plafond"] > 0)), "aide : taux ou plafond invalide")
     check(counted & (df["nature"] == "investissement") & ~(df["duree_vie_ans"] > 0), "investissement sans durée de vie")
     check(~counted & ~df["inclus_dans"].isin(df["poste"]), "inclus_dans pointe vers un poste inconnu")
     if errors:

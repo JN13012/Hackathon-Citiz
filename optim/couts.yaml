@@ -7,9 +7,18 @@
 #   duree_vie_ans : amortissement linéaire des investissements
 #   inclus_dans   : montant déjà compté dans un autre poste (pas de double compte)
 #   option        : poste ajouté seulement à la variante <équipement>_<option> (ex. station_citiz_electrique)
-#   aide: true    : subvention, montant négatif (min = aide la plus forte)
-# Limite : euros courants de l'année indiquée (2012 à 2024), sans conversion en euros constants.
+#   aide: true    : subvention négative ; taux x poste `base` du même scénario, limité à `plafond`
+# Montants saisis en euros courants de leur année (`annee`), convertis en euros constants 2025 par build_couts.py
+# avec l'indice des prix INSEE ci-dessous (poste sans année = hypothèse, supposée en euros 2025).
 devise: EUR
+
+# Indice des prix à la consommation, base 2015, ensemble des ménages, France, hors tabac (moyenne annuelle
+# des 12 mois), série INSEE 001763852 : https://www.insee.fr/fr/statistiques/serie/001763852
+# Années postérieures à la dernière année connue : indice de la dernière année (pas d'extrapolation).
+euros_constants:
+  annee_reference: 2025
+  ipc: {2012: 98.82, 2013: 99.56, 2014: 99.97, 2015: 100.00, 2016: 100.19, 2017: 101.19, 2018: 102.82,
+        2019: 103.77, 2020: 103.98, 2021: 105.60, 2022: 111.24, 2023: 116.61, 2024: 118.76, 2025: 119.82}
 
 # Taille d'un nouvel équipement (hypothèses tirées des flux GBFS France, octobre 2026)
 dimensionnement:
@@ -44,10 +53,11 @@ station_citiz:
      source: "HelloPro, prix d'une borne 7,4-22 kW (1 900-4 200 €) et de son installation (1 000-3 000 €) (source commerciale)", annee: 2024,
      url: "https://conseils.hellopro.fr/combien-coute-une-borne-de-recharge-pour-vehicules-electriques-1249.html",
      note: "max = borne 22/24 kW sur voirie à Roannais Agglomération (ARA), 22 000 € TTC aides déduites, soit 18 333 € HT : https://www.riorges.fr/images/deliberations/DCM_2022_69_Conv_bornes_IRVE.pdf ; durée de vie = hypothèse"}
-  - {poste: aide_advenir, option: electrique, aide: true, montant: -1500, min: -1900, max: -1000, unite: "EUR/station", duree_vie_ans: 10,
-     source: "Prime ADVENIR, voirie publique : 30 % du coût HT, plafond 1 000 à 1 900 € HT par point de recharge (tarifs 2025, TotalEnergies)", annee: 2025,
-     url: "https://www.totalenergies.fr/particuliers/recharge-voiture-electrique/la-prime-advenir",
-     note: "30 % x 5 000 € = 1 500 € ; barème revalorisé au 1/04/2026 (1 000 à 9 000 € HT selon la puissance, https://www.isiohm.fr/prime-advenir) ; à confirmer sur advenir.mobi avant usage"}
+  - {poste: aide_advenir, option: electrique, aide: true, taux: 0.30, base: borne_recharge, plafond: 9000,
+     unite: "EUR/station", duree_vie_ans: 10,
+     source: "ADVENIR (Avere France), prime voirie : 30 % du coût HT, plafond de 1 000 à 9 000 € HT par point de recharge selon la puissance", annee: 2026,
+     url: "https://advenir.mobi/voirie/",
+     note: "montant = -min(30 % x borne_recharge, plafond) dans chaque scénario ; plafond 9 000 € pris par défaut (la page ne détaille pas les tranches de puissance). Éligibilité : collectivité ou personne publique, borne ouverte à tout public sur la voirie ; une borne réservée à Citiz pourrait ne pas être éligible (à vérifier avec la collectivité)"}
 
 arret_bus:
   - {poste: mobilier, montant: 3500, min: 1500, max: 8000, unite: "EUR/arrêt", duree_vie_ans: 15,
