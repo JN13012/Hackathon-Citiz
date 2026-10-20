@@ -278,7 +278,7 @@ def main():
     terr = terr[COLUMNS].sort_values(["type", "reseau", "station_id"]).reset_index(drop=True)
     assert terr["station_id"].is_unique, "station_id en double"
     terr.to_parquet(T.SILVER / "stations_partagees.parquet")
-    qc += ["", f"Territoire ({T.NIVEAU} {T.CODES if args.contours is None else args.contours}) :",
+    qc += ["", f"Territoire ({territory}) :",
            summary(terr), f"Communes avec une station Citiz : {terr.loc[terr['type'] == 'citiz', 'commune'].nunique()}",
            "\nPar réseau :", terr.groupby(["type", "reseau"]).size().to_string(),
            f"Stations Citiz « électriques » d'après le nom : {terr.loc[terr['type'] == 'citiz', 'electrique_nom'].sum()}",

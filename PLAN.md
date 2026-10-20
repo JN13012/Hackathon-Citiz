@@ -228,8 +228,8 @@ Pas de données dans Git. Clé de jointure : identifiant de carreau INSEE 200 m 
 | Projections Omphale 2022 (central, basse, haute) | `optim/build_projections.py` | `projections` (12 départements, 2021 → 2030) ; `projections_carreaux` (311 648 carreaux, clé `id_carreau`). |
 | Coûts des 3 équipements | `optim/couts.yaml` → `optim/build_couts.py` | `couts` (14 postes : 11 sourcés, 1 hypothèse, 2 inclus dans un autre poste), dont la variante électrique (borne − ADVENIR) ; `couts_equipements` (bas / central / haut) ; `tarifs_citiz` et `marge_citiz` (recettes GBFS, pessimiste / central / optimiste). |
 
-Coût annualisé, scénario central : arrêt de bus ≈ 1 200 €/an, station Citiz ≈ 9 600 €/an (électrique ≈ 9 950 €), station vélo (10 vélos) ≈ 23 400 €/an.
-Recette d'une station Citiz (central, 1 location/jour) ≈ 8 580 € HT/an, marge ≈ −1 000 €/an (pessimiste −9 800 €, optimiste +24 800 €) : entrée de la péréquation (bonus).
+Coût annualisé, scénario central, en euros constants 2025 : arrêt de bus ≈ 1 200 €/an, station Citiz ≈ 9 700 €/an (électrique ≈ 10 050 €, prime ADVENIR déduite), station vélo (10 vélos) ≈ 28 400 €/an.
+Recette d'une station Citiz (central, 1 location/jour) ≈ 8 580 € HT/an, marge ≈ −1 100 €/an (pessimiste −9 900 €, optimiste +24 800 €) : entrée de la péréquation (bonus).
 *Terminé quand* : toutes les stations sont dans le territoire ✅ et chaque coût a une source ou la mention « hypothèse » ✅.
 
 **Étape 2 · Construire**
