@@ -115,8 +115,8 @@ Réseaux téléchargés par `scripts/build_arrets.py` (Rôle 1), 19 jeux de donn
 | Base permanente des équipements (INSEE, BPE 2025, fichier-détail géolocalisé) | https://www.insee.fr/fr/statistiques/fichier/8217525/BPE25.parquet | chargé le 19/10/2026 (rôle 3) |
 | Emplois au lieu de travail par commune (INSEE, recensement 2022, `P22_EMPLT`) | https://www.insee.fr/fr/statistiques/fichier/8581444/base-cc-emploi-pop-active-2022_csv.zip | chargé le 19/10/2026 (rôle 3) |
 | Populations de référence 2023 (INSEE), contrôle de cohérence | https://www.insee.fr/fr/statistiques/fichier/8680726/ensemble.zip | Filosofi = 93,9 % de la population légale (rôle 3) |
-| Enquête nationale sur l'autopartage (ADEME, édition la plus récente) | https://www.ademe.fr | à vérifier |
-| Facteur d'émission d'une voiture par km (ADEME, Base Empreinte) | https://base-empreinte.ademe.fr | à relever |
+| Enquête nationale sur l'autopartage 2022 (6t pour l'ADEME, 165 p.) : voitures remplacées (p. 76), utilisateurs par voiture et places libérées (p. 79), km parcourus (p. 81) et évités (p. 82, p. 68) | https://www.ort.bourgogne-franche-comte.developpement-durable.gouv.fr/IMG/pdf/enquete-autopartage-2022-rapport.pdf · notice : https://librairie.ademe.fr/mobilite-et-transport/5804-enquete-autopartage-2022.html | chargé le 20/10/2026 (rôle 5), `ratios_co2` |
+| Facteurs d'émission par km : voiture thermique 0,1106 kg CO₂e, électrique 0,0121, bus thermique 0,1135 / passager, tram 0,0038, vélo (Impact CO₂ de l'ADEME, données Base Empreinte) | https://impactco2.fr/api/v1/transport?km=1&displayAll=1 · méthode : https://impactco2.fr/methodologie | relevé le 20/10/2026 (rôle 5), `ratios_co2` |
 
 ## O1 et O2 — calcul local Grenoble du 20 octobre 2026
 
