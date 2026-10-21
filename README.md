@@ -82,7 +82,8 @@ service WFS de l'IGN, puis les prépare avec `geo/build_contours.py` (4 025 comm
 Un `data/silver/contours.parquet` déjà présent est conservé ; `--refresh` le reconstruit.
 
 **GTFS TCL (Lyon)** : le serveur Grand Lyon exige désormais une authentification (HTTP 401). Avant
-`run_all.py`, copier le GTFS TCL officiel de l'espace partagé de l'équipe en `data/bronze/gtfs/tcl_lyon.zip` :
+`run_all.py`, copier le GTFS TCL officiel partagé dans le groupe interne Teams de l'équipe (`tcl_lyon.ZIP`, 23,3 Mo,
+SHA-256 `1e1ea83a…4306a0c`, valide du 19/10/2026 au 16/02/2027) en `data/bronze/gtfs/tcl_lyon.zip` :
 il est réutilisé sans téléchargement. Sans ce fichier, la collecte s'arrête et indique quoi faire.
 
 La collecte GTFS exige les contours IGN (`data/silver/contours.parquet`). Si un

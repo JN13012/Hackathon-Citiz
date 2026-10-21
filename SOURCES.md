@@ -78,7 +78,7 @@ Réseaux téléchargés par `scripts/build_arrets.py` (Rôle 1), 19 jeux de donn
 
 | Réseau | Clé | Jeu de données |
 |---|---|---|
-| TCL (Lyon) | `tcl_lyon` | https://www.data.gouv.fr/datasets/horaires-theoriques-du-reseau-transports-en-commun-lyonnais · **accès Grand Lyon authentifié (HTTP 401)** : GTFS officiel TCL (valide du 19/10/2026 au 16/02/2027) déposé dans l'espace partagé, à copier en `data/bronze/gtfs/tcl_lyon.zip` |
+| TCL (Lyon) | `tcl_lyon` | https://www.data.gouv.fr/datasets/horaires-theoriques-du-reseau-transports-en-commun-lyonnais · **accès Grand Lyon authentifié (HTTP 401)** : GTFS officiel TCL (éditeur TCL, valide du 19/10/2026 au 16/02/2027, 9 842 points d'arrêt, 4 lignes de métro, 8 de tram, 2 funiculaires ; SHA-256 `1e1ea83a1e10a175777f17c2183b0ea68fc708eab7e1dc57247c5a9c94306a0c`), partagé dans le groupe interne Teams de l'équipe ; à copier en `data/bronze/gtfs/tcl_lyon.zip` |
 | TAG / M réso (Grenoble) | `tag_grenoble` | https://www.data.gouv.fr/datasets/horaires-theoriques-du-reseau-tag |
 | Téléphérique de la Bastille (Grenoble) | `bastille_grenoble` | https://www.data.gouv.fr/datasets/horaires-theoriques-du-telepherique-de-la-bastille |
 | Pays Voironnais | `pays_voironnais` | https://www.data.gouv.fr/datasets/horaires-theoriques-du-reseau-transport-du-pays-voironnais |

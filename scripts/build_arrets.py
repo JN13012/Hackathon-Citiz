@@ -54,7 +54,7 @@ CRS_LAMBERT93 = 2154
 # Sources qui ne se téléchargent plus automatiquement : on indique comment les obtenir.
 MANUAL_SOURCES = {
     "tcl_lyon": "le serveur Grand Lyon exige une authentification (HTTP 401). Récupérer le GTFS TCL officiel "
-                "dans l'espace partagé de l'équipe et le copier en data/bronze/gtfs/tcl_lyon.zip "
+                "(tcl_lyon.ZIP, groupe interne Teams de l'équipe) et le copier en data/bronze/gtfs/tcl_lyon.zip "
                 "(il sera réutilisé sans téléchargement), ou passer --gtfs tcl_lyon=chemin.zip",
 }
 DEDUP_RADIUS_M = 50

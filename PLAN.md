@@ -333,6 +333,21 @@ flowchart LR
 | D2 | Un nom par rôle | ⬜ à compléter dans le `README` |
 | D3 | Grille d'analyse | ✅ carreaux INSEE 200 m (`id_carreau`) |
 | D4 | Outil de restitution | ✅ Power BI |
+| D5 | Définition de O1 | ✅ retenue le 21/10 : **options accessibles à 5 min par habitant**, moyenne pondérée par la population (100 habitants qui atteignent 5 points → 5), calcul du Rôle 2 ; pas le ratio « points / population » |
+| D6 | Réseau piéton, O1, O2, couverture | ✅ hors de `run_all.py` (plusieurs heures, ~2,5 Go) : commandes dans `geo/README.md`, résultats distribués par l'archive Teams du Rôle 2, à copier dans `data/silver` et `data/gold` |
+| D7 | Arrêts de référence | ✅ ceux reconstruits par `run_all.py` sur `main` (17 178 arrêts) ; écart avec la livraison du Rôle 2 : 2 arrêts, 4 paires sur 72 389 (0,01 %), noté comme limite |
+| D8 | Jour de référence des fréquences | ✅ automatique (mardi le plus chargé de chaque GTFS), pas de date commune : un mardi unique risquait de laisser sans service un réseau dont le GTFS ne le couvre pas (Citéa) |
+
+## 11 bis. Limites connues du nettoyage (à dire à l'oral)
+
+| Limite | Effet | Parade |
+|---|---|---|
+| GTFS TCL derrière une authentification Grand Lyon | sans le fichier partagé, la collecte s'arrête (pas de Lyon silencieusement perdu) | fichier `tcl_lyon.ZIP` du groupe Teams, valide jusqu'au 16/02/2027 |
+| Jours de référence différents selon les réseaux (D8) | fréquences comparables entre réseaux, mais pas à la même date | fixer une date commune quand tous les GTFS la couvrent |
+| Calculs géomatiques hors `run_all.py` (D6) | reproductibles par commande, pas en un seul lancement | archive Teams + `geo/README.md` |
+| Écart de 2 arrêts avec la livraison géomatique (D7) | 4 paires de desserte sur 72 389 sans type d'offre | recalcul des paires sur les arrêts de `main` après la soutenance |
+| Usage d'une station Citiz | hypothèse de l'équipe (1 location/jour, 3 h, 30 km) appliquée aux tarifs publics GBFS de Citiz | scénarios pessimiste / central / optimiste dans `marge_citiz` ; usage réel non utilisé (choix d'équipe du 21/10) |
+| Coûts publics locaux ou anciens (2012-2024) | ordres de grandeur | euros constants 2025, scénarios bas / central / haut |
 
 ---
 
