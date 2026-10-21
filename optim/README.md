@@ -56,10 +56,16 @@ d'habitants qui n'ont pas encore cette offre à 5 min à pied ?
   `--equite 0.5` (+50 % de poids dans les communes < 10 000 hab.), `--repartition citiz=0.5,bus=0.25,velo=0.25`.
 - **Sorties** (`data/gold/`) : `gold_liste_priorisee` (.parquet, .csv, .geojson pour Power BI),
   `gold_courbe_budget` (3 scénarios de coût, avec et sans équité), `optimiseur_qc.txt`. Tests : `tests/test_optimise.py`.
-- **Résultat (21/10, approximation 308 m, 500 000 €/an, central)** : libre -> 17 Citiz + 277 arrêts de bus,
-  349 000 habitants gagnés, 22,8 t CO₂e/an ; avec `--repartition citiz=0.5,bus=0.25,velo=0.25 --equite 0.5` ->
-  25 Citiz + 105 bus + 4 vélo, 284 000 habitants, 33,5 t CO₂e/an. Les stations Citiz retenues restent
+- **Résultat sur le réseau piéton réel** (livraison du Rôle 2 du 20/10 : 209 953 candidats utilisables,
+  desserte existante par les paires population-offre ; 500 000 €/an, scénario central) :
+  - libre -> 7 Citiz + 361 arrêts de bus, **315 781 habitants gagnés** en 2030, 9,4 t CO₂e/an ;
+  - `--repartition citiz=0.5,bus=0.25,velo=0.25 --equite 0.5` -> 25 Citiz + 105 bus + 4 vélo,
+    236 166 habitants, 33,5 t CO₂e/an.
+  L'approximation à 308 m surestimait d'environ 10 % (349 000 habitants). Les stations Citiz retenues restent
   déficitaires au scénario central (≈ -1 100 €/an chacune) : péréquation à discuter.
+- **Fichiers du Rôle 2 à placer** (livraison Teams) : `data/gold/gold_couverture.parquet`,
+  `data/gold/candidats_couverture.parquet`, `data/gold/accessibilite_ara/resultats/internes/paires_accessibles.parquet`.
+  Ne pas copier les `docs/` de l'archive : ils sont plus anciens que ceux de `main`.
 
 ## Optimiseur : suite
 
