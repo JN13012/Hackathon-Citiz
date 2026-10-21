@@ -39,7 +39,29 @@
   Central : ≈ 24 € HT par location, 8 580 € HT/an par station (1 location/jour) contre 9 700 € de coût,
   marge ≈ −1 100 €/an : d'où la question de la péréquation.
 
-## Optimiseur (à faire)
+## Optimiseur sous budget (`optimise.py`)
+
+Question : avec un budget annuel, quels emplacements et quels équipements (Citiz, bus, vélo) desservent le plus
+d'habitants qui n'ont pas encore cette offre à 5 min à pied ?
+
+- **Entrées** : `gold_candidates`, `projections_carreaux` (population 2030), `couts_equipements`, `ratios_co2`,
+  `gold_offre` ; et, s'ils sont présents, `gold_couverture` et les paires population-offre du Rôle 2 (réseau
+  piéton réel) et `gold_scores` du Rôle 3 (usage prédit). Sans les fichiers du Rôle 2 : approximation à
+  308 m à vol d'oiseau (400 m / 1,3, comme l'EDA), signalée dans la colonne `methode_couverture`.
+- **Méthode** : couverture maximale sous budget, algorithme glouton paresseux (habitants nouvellement desservis
+  par euro), un habitant compté une fois par type, distance minimale entre deux nouveaux équipements du même
+  type (Citiz 500 m, d'après l'EDA ; bus et vélo 300 m). Un arrêt de bus n'est proposé qu'à moins de 1 km d'un
+  arrêt existant (coût « sur une ligne existante », hypothèse).
+- **Réglages** : `--budget` (€ HT 2025/an), `--scenario bas|central|haut`, `--horizon 2021|2030`,
+  `--equite 0.5` (+50 % de poids dans les communes < 10 000 hab.), `--repartition citiz=0.5,bus=0.25,velo=0.25`.
+- **Sorties** (`data/gold/`) : `gold_liste_priorisee` (.parquet, .csv, .geojson pour Power BI),
+  `gold_courbe_budget` (3 scénarios de coût, avec et sans équité), `optimiseur_qc.txt`. Tests : `tests/test_optimise.py`.
+- **Résultat (21/10, approximation 308 m, 500 000 €/an, central)** : libre -> 17 Citiz + 277 arrêts de bus,
+  349 000 habitants gagnés, 22,8 t CO₂e/an ; avec `--repartition citiz=0.5,bus=0.25,velo=0.25 --equite 0.5` ->
+  25 Citiz + 105 bus + 4 vélo, 284 000 habitants, 33,5 t CO₂e/an. Les stations Citiz retenues restent
+  déficitaires au scénario central (≈ -1 100 €/an chacune) : péréquation à discuter.
+
+## Optimiseur : suite
 
 - `couts.yaml` : coût par type d'équipement (Citiz, bus, vélo). Chaque valeur est sourcée dans `SOURCES.md` ou marquée « hypothèse ».
 - Optimiseur sous budget (PuLP, couverture maximale) : maximise la population nouvellement desservie × croissance Omphale × usage prédit.

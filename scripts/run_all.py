@@ -22,7 +22,7 @@ STEPS = [
     ("Contrôle des tables transport",             ["scripts/controle_qualite.py"]),
     # ("Rôle 2 - isochrones, O1, O2, couverture",     ["geo/build_isochrones.py"]),
     # ("Rôle 3 - features, modèle, scores",           ["model/train.py"]),
-    # ("Rôle 4 - optimiseur",                         ["optim/optimise.py"]),
+    ("Rôle 4 - optimiseur, liste priorisée (gold)",   ["optim/optimise.py"]),
 ]
 
 

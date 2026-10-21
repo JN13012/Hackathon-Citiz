@@ -34,6 +34,8 @@ Conventions : colonnes en `snake_case`, géométries en Lambert 93 (EPSG:2154), 
 | `gold_o2` | 2 | pilote Grenoble : population à 5 min de chacun des 303 arrêts/stations, voisins inclus, dossier `accessibilite_grenoble` | mardi 12 h 30 |
 | `gold_couverture` | 2 | livré : relation `id_candidat`, `id_carreau`, `temps_pieton_s` ; 563 613 paires ARA à au plus 300 s, avec synthèse des candidats et inconnues séparées ; voir [couverture_ara.md](couverture_ara.md) | mardi 14 h |
 | `gold_features` | 3 | variables socio-économiques et d'intermodalité par isochrone | mardi 12 h |
+| `gold_liste_priorisee` | 4 | un nouvel équipement retenu sous budget : `rang`, `type` (citiz, bus, velo), `id_candidat`, `commune`, `nom_commune`, `cout_annualise`, `cout_investissement`, `habitants_gagnes_2030`, `habitants_cumules`, `budget_cumule`, `co2_evite_t_an` (Citiz), `methode_couverture`, `scenario_cout`, `equite`, `geometry` | mercredi 10 h |
+| `gold_courbe_budget` | 4 | habitants gagnés selon le budget annuel, par scénario de coût et réglage d'équité, avec le nombre d'équipements par type et la part en petites communes | mercredi 10 h |
 | `gold_scores` | 3 | usage potentiel prédit par candidat et par type | mardi 16 h 30 |
 
 ## Détail · `carreaux_socio` (rôle 3)
