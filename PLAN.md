@@ -346,7 +346,7 @@ flowchart LR
 | Jours de référence différents selon les réseaux (D8) | fréquences comparables entre réseaux, mais pas à la même date | fixer une date commune quand tous les GTFS la couvrent |
 | Calculs géomatiques hors `run_all.py` (D6) | reproductibles par commande, pas en un seul lancement | archive Teams + `geo/README.md` |
 | Écart de 2 arrêts avec la livraison géomatique (D7) | 4 paires de desserte sur 72 389 sans type d'offre | recalcul des paires sur les arrêts de `main` après la soutenance |
-| Usage d'une station Citiz | encore une hypothèse (1 location/jour, 3 h, 30 km) | données d'usage transmises par Citiz le 21/10, à intégrer après confirmation de la période et du périmètre |
+| Usage d'une station Citiz | hypothèse de l'équipe (1 location/jour, 3 h, 30 km) appliquée aux tarifs publics GBFS de Citiz | scénarios pessimiste / central / optimiste dans `marge_citiz` ; usage réel non utilisé (choix d'équipe du 21/10) |
 | Coûts publics locaux ou anciens (2012-2024) | ordres de grandeur | euros constants 2025, scénarios bas / central / haut |
 
 ---
