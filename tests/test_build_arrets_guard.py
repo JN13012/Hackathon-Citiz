@@ -117,12 +117,18 @@ class CollectionGuardTests(unittest.TestCase):
             self.assert_previous(folder)
 
     def test_pipeline_stops_before_gold_when_collection_fails(self):
-        with patch.object(run_all.subprocess, "run", side_effect=subprocess.CalledProcessError(1, ["collecte"])) as run:
+        # les étapes qui précèdent la collecte (contours IGN) réussissent ; la collecte des arrêts échoue
+        def fake_run(cmd, **kwargs):
+            if "scripts/build_arrets.py" in cmd:
+                raise subprocess.CalledProcessError(1, ["collecte"])
+        with patch.object(run_all.subprocess, "run", side_effect=fake_run) as run:
             with self.assertRaises(subprocess.CalledProcessError):
                 run_all.main()
-            run.assert_called_once()
-            self.assertTrue(run.call_args.kwargs["check"])
-            self.assertIn("--contours", run.call_args.args[0])
+            called = [call.args[0] for call in run.call_args_list]
+            self.assertTrue(all(call.kwargs["check"] for call in run.call_args_list))
+            self.assertIn("scripts/build_arrets.py", called[-1])
+            self.assertIn("--contours", called[-1])
+            self.assertFalse(any("scripts/build_gold.py" in c for c in called))  # arrêt avant le gold
 
 
 if __name__ == "__main__":
