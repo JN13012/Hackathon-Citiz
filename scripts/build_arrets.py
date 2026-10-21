@@ -2,6 +2,7 @@ import argparse
 import hashlib
 import re
 import shutil
+import time
 import unicodedata
 import zipfile
 from datetime import date, datetime, timedelta
@@ -92,13 +93,43 @@ def normalize(name):
 EXCLUDED_WORDS = ("fichiers txt", "gtfs-rt", "gtfsrt", "gtfs_rt", "netex", "trip_updates", "vehicle_positions")
 
 
+TRANSIENT = (requests.ConnectionError, requests.Timeout)  # coupure réseau passagère : on réessaie
+
+
+def with_retries(action, label, attempts=3):
+    """Relance une requête après une coupure réseau ou une erreur serveur 5xx (5 s puis 10 s d'attente)."""
+    for attempt in range(attempts):
+        try:
+            return action()
+        except requests.HTTPError as exc:
+            if exc.response is None or exc.response.status_code < 500 or attempt == attempts - 1:
+                raise
+            error = exc
+        except TRANSIENT as exc:
+            if attempt == attempts - 1:
+                raise
+            error = exc
+        print(f"[{label}] erreur réseau passagère ({type(error).__name__}), nouvel essai dans {5 * 2 ** attempt} s")
+        time.sleep(5 * 2 ** attempt)
+
+
+def cached_gtfs(name):
+    """GTFS déjà téléchargés pour un réseau dans data/bronze/gtfs/ (archives zip valides)."""
+    files = sorted(BRONZE.glob(f"{name}.zip")) or sorted(BRONZE.glob(f"{name}_[0-9]*.zip"))
+    return [(f.stem, f) for f in files if zipfile.is_zipfile(f)]
+
+
 def resolve_gtfs_urls(slug):
     """Cherche dans l'API data.gouv.fr les fichiers GTFS statiques d'un jeu de données.
 
     Un réseau peut publier plusieurs GTFS (ex. Grand Albigeois : urbain, périurbain, navettes) :
     on les retourne tous, en gardant la version la plus récente de chaque fichier.
     Retourne une liste [(titre, url)]."""
-    meta = requests.get(f"https://www.data.gouv.fr/api/1/datasets/{slug}/", timeout=60).json()
+    def fetch():
+        r = requests.get(f"https://www.data.gouv.fr/api/1/datasets/{slug}/", timeout=60)
+        r.raise_for_status()
+        return r.json()
+    meta = with_retries(fetch, slug)
     best = {}
     for r in meta.get("resources", []):
         fmt = (r.get("format") or "").lower()
@@ -129,19 +160,30 @@ def download_one(label, url, refresh=False):
         print(f"[{label}] fichier incomplet ou corrompu, nouveau téléchargement")
     print(f"[{label}] téléchargement {url.split('?')[0]}")  # sans la clé d'API éventuelle
     tmp = dest.with_suffix(".part")  # on n'écrit le .zip qu'une fois le téléchargement terminé
-    with requests.get(url, stream=True, timeout=600) as r:
-        r.raise_for_status()
-        with open(tmp, "wb") as f:
-            for chunk in r.iter_content(1 << 20):
-                f.write(chunk)
+    def fetch():
+        with requests.get(url, stream=True, timeout=600) as r:
+            r.raise_for_status()
+            with open(tmp, "wb") as f:
+                for chunk in r.iter_content(1 << 20):
+                    f.write(chunk)
+    with_retries(fetch, label)
     tmp.replace(dest)
     print(f"[{label}] téléchargé ({dest.stat().st_size / 1e6:.1f} Mo)")
     return dest
 
 
 def download_network(name, slug, refresh=False):
-    """Télécharge tous les GTFS d'un réseau. Retourne [(étiquette, chemin)]."""
-    resources = resolve_gtfs_urls(slug)
+    """Télécharge tous les GTFS d'un réseau. Retourne [(étiquette, chemin)].
+    Si data.gouv.fr reste injoignable, les GTFS déjà présents dans data/bronze/gtfs/ sont réutilisés."""
+    try:
+        resources = resolve_gtfs_urls(slug)
+    except TRANSIENT as exc:
+        cached = cached_gtfs(name)
+        if refresh or not cached:
+            raise
+        print(f"[{name}] data.gouv.fr injoignable ({type(exc).__name__}) : GTFS déjà téléchargé réutilisé "
+              f"({', '.join(path.name for _, path in cached)})")
+        return cached
     out = []
     for i, (title, url) in enumerate(resources, 1):
         label = name if len(resources) == 1 else f"{name}_{i}"
