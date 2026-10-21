@@ -265,9 +265,24 @@ def main():
     communes = carreaux.set_index("id_carreau")["commune"].reindex(cand["id_carreau"]).to_numpy()
     contours = read(SILVER / "contours.parquet")
     names = {} if contours is None else contours[contours["niveau"] == "commune"].set_index("code_insee")["nom"].to_dict()
+    socio = read(SILVER / "carreaux_socio.parquet")
+    current = {} if socio is None or "code_commune_actuelle" not in socio else \
+        socio.set_index("code_commune")["code_commune_actuelle"].groupby(level=0).first().to_dict()
+
+    def commune_name(code):
+        """Nom de commune : code Filosofi 2021, sinon commune actuelle (fusions, Rôle 3), sinon arrondissement."""
+        if code in names:
+            return names[code]
+        if code in current and current[code] in names:
+            return names[current[code]]
+        # arrondissements : Lyon 6938x (un chiffre), Paris 751xx et Marseille 132xx (deux chiffres)
+        for prefix, city in (("6938", "Lyon"), ("751", "Paris"), ("132", "Marseille")):
+            if code.startswith(prefix):
+                return f"{city} {int(code[len(prefix):])}e"
+        return None
     out = gpd.GeoDataFrame({
         "rang": best["rang"], "type": best["type"], "id_candidat": cand["id_carreau"],
-        "commune": communes, "nom_commune": [names.get(c) for c in communes],
+        "commune": communes, "nom_commune": [commune_name(c) for c in communes],
         "cout_annualise": best["cout_annualise"].round(0),
         "cout_investissement": [costs.loc[(EQUIPMENTS[t]["cout"], args.scenario), "cout_investissement"] for t in best["type"]],
         f"habitants_gagnes_{args.horizon}": best["habitants_gagnes"].round(1),
