@@ -30,6 +30,10 @@ les données extraites sont conservées sous `data/bronze/ign/`.
 
 Les liens relatifs `data/bronze/ign/admin.gpkg` et `data/bronze/ign/iris.gpkg`
 pointent vers les GeoPackage extraits, en conservant les noms d'origine.
+Sans ces archives, `geo/download_contours_ign.py` récupère les mêmes données par le service WFS de l'IGN
+(https://data.geopf.fr/wfs/ows : `ADMINEXPRESS-COG.LATEST:commune`, `:epci`, `:arrondissement_municipal`,
+`STATISTICALUNITS.IRIS:contours_iris`), filtrées sur la région 84, enregistrées dans `data/bronze/ign/` :
+4 025 communes, 172 EPCI, 9 arrondissements de Lyon, 5 407 IRIS (vérifié le 21/10/2026).
 `geo/build_contours.py` sélectionne les communes de la région 84, rattache les
 IRIS par code commune et découpe les IRIS et EPCI à l'union de ces communes.
 Pour les IRIS de Lyon, la couche officielle `arrondissement_municipal` d'ADMIN
@@ -74,7 +78,7 @@ Réseaux téléchargés par `scripts/build_arrets.py` (Rôle 1), 19 jeux de donn
 
 | Réseau | Clé | Jeu de données |
 |---|---|---|
-| TCL (Lyon) | `tcl_lyon` | https://www.data.gouv.fr/datasets/horaires-theoriques-du-reseau-transports-en-commun-lyonnais |
+| TCL (Lyon) | `tcl_lyon` | https://www.data.gouv.fr/datasets/horaires-theoriques-du-reseau-transports-en-commun-lyonnais · **accès Grand Lyon authentifié (HTTP 401)** : GTFS officiel TCL (valide du 19/10/2026 au 16/02/2027) déposé dans l'espace partagé, à copier en `data/bronze/gtfs/tcl_lyon.zip` |
 | TAG / M réso (Grenoble) | `tag_grenoble` | https://www.data.gouv.fr/datasets/horaires-theoriques-du-reseau-tag |
 | Téléphérique de la Bastille (Grenoble) | `bastille_grenoble` | https://www.data.gouv.fr/datasets/horaires-theoriques-du-telepherique-de-la-bastille |
 | Pays Voironnais | `pays_voironnais` | https://www.data.gouv.fr/datasets/horaires-theoriques-du-reseau-transport-du-pays-voironnais |

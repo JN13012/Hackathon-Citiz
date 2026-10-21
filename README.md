@@ -77,6 +77,14 @@ docker compose run --rm pipeline
   un accès Internet. Les scripts géomatiques se lancent séparément, avec les
   commandes du guide ci-dessous.
 
+**Contours** : la première étape (`geo/download_contours_ign.py`) récupère ADMIN EXPRESS et les IRIS par le
+service WFS de l'IGN, puis les prépare avec `geo/build_contours.py` (4 025 communes, 172 EPCI, 5 407 IRIS).
+Un `data/silver/contours.parquet` déjà présent est conservé ; `--refresh` le reconstruit.
+
+**GTFS TCL (Lyon)** : le serveur Grand Lyon exige désormais une authentification (HTTP 401). Avant
+`run_all.py`, copier le GTFS TCL officiel de l'espace partagé de l'équipe en `data/bronze/gtfs/tcl_lyon.zip` :
+il est réutilisé sans téléchargement. Sans ce fichier, la collecte s'arrête et indique quoi faire.
+
 La collecte GTFS exige les contours IGN (`data/silver/contours.parquet`). Si un
 réseau attendu échoue au téléchargement ou à la lecture, elle termine en erreur
 et conserve les fichiers d'arrêts précédents. Les identifiants, géométries,
@@ -144,6 +152,7 @@ séparément du code ; ils restent exclus de Git.
 ```bash
 python scripts/compter_stations_citiz.py   # compte stations et véhicules des réseaux Citiz (D1)
 python scripts/run_all.py                  # rejoue la chaîne bronze -> silver -> gold
+python geo/download_contours_ign.py        # Rôle 2 seul : contours IGN (WFS) -> data/silver/contours.parquet
 python model/build_carreaux.py --help      # Rôle 3 seul : carreaux_socio (INSEE, téléchargé dans data/bronze/insee/)
 python optim/build_offre_partagee.py       # Rôle 4 seul : stations partagées (idem build_projections, build_couts)
 ```

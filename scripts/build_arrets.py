@@ -50,6 +50,13 @@ NETWORKS = {
 }
 
 CRS_LAMBERT93 = 2154
+
+# Sources qui ne se téléchargent plus automatiquement : on indique comment les obtenir.
+MANUAL_SOURCES = {
+    "tcl_lyon": "le serveur Grand Lyon exige une authentification (HTTP 401). Récupérer le GTFS TCL officiel "
+                "dans l'espace partagé de l'équipe et le copier en data/bronze/gtfs/tcl_lyon.zip "
+                "(il sera réutilisé sans téléchargement), ou passer --gtfs tcl_lyon=chemin.zip",
+}
 DEDUP_RADIUS_M = 50
 HOUR_MIN, HOUR_MAX = 6, 21  # passages comptés de 6 h (inclus) à 21 h (exclu)
 DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
@@ -442,6 +449,8 @@ def main(argv=None):
             except Exception as exc:
                 echecs.append(n)
                 print(f"[{n}] ÉCHEC : {str(exc)[:150]}")
+                if n in MANUAL_SOURCES:
+                    print(f"[{n}] À FAIRE : {MANUAL_SOURCES[n]}")
     if echecs:
         raise RuntimeError(f"Collecte incomplète : {', '.join(echecs)}. Fichiers silver conservés.")
 
