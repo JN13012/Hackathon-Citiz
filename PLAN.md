@@ -236,7 +236,7 @@ Recette d'une station Citiz (central, 1 location/jour) ≈ 8 580 € HT/an, marg
 
 | Tâche | Résultat attendu | Échéance |
 |---|---|---|
-| Optimiseur sous budget (PuLP), d'abord avec la référence | Liste priorisée : type, lieu, coût, habitants gagnés ; budget et distance minimale | Mar 15 h (après `gold_couverture`) |
+| ✅ Optimiseur sous budget (`optim/optimise.py`, glouton paresseux plutôt que PuLP : 312 143 candidats en quelques secondes), d'abord avec la référence | Liste priorisée : type, lieu, coût, habitants gagnés ; budget et distance minimale | Mar 15 h (après `gold_couverture`) |
 | Brancher la valeur des candidats | Nouveaux desservis × croissance Omphale × usage prédit (`gold_scores`) | Mar 17 h 45 |
 | Réglage d'équité | Comparaison avec et sans priorité aux zones peu denses | Mer 10 h |
 | Courbe budget → habitants | Graphique + sensibilité aux coûts (scénarios bas / haut) | Mer 10 h |
