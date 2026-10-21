@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "hypothese": "MVP : une station est accessible dès qu'un de ses accès extérieurs est atteint en 300 secondes. Le temps après l'accès jusqu'au quai n'est pas modélisé.",
+  "acces": [
+    {
+      "acces_id": "croix_paquet_osm_7937873345",
+      "offre_id": "arret_f9dad1e4bc",
+      "nom_station": "Croix-Paquet",
+      "noeud_osm": 7937873345,
+      "tourniquet_osm": 7937873346,
+      "voie_osm": 850918864,
+      "tuile_id": "x84_y652",
+      "source": "OSM : nœud de chemin extérieur avant le tourniquet ; accès candidat accepté pour le MVP",
+      "ecart_station_max_m": 50
+    },
+    {
+      "acces_id": "croix_paquet_osm_7995153793",
+      "offre_id": "arret_f9dad1e4bc",
+      "nom_station": "Croix-Paquet",
+      "noeud_osm": 7995153793,
+      "tourniquet_osm": 7937873362,
+      "voie_osm": 857548004,
+      "tuile_id": "x84_y652",
+      "source": "OSM : nœud de chemin extérieur avant le tourniquet ; accès candidat accepté pour le MVP",
+      "ecart_station_max_m": 50
+    }
+  ]
+}

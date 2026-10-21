@@ -5,6 +5,190 @@
 - Produire `gold_isochrones`, `gold_o1`, `gold_o2`, `gold_couverture`.
 - Livrer le contour du territoire en premier (lundi 15 h) : tout le monde en a besoin.
 
+**Relation candidat–population ARA disponible** :
+`data/gold/gold_couverture.parquet` contient 563 613 relations accessibles sur
+835 tuiles. La table `data/gold/candidats_couverture.parquet` conserve les
+312 143 candidats et leurs statuts ; 209 953 sont entièrement calculables.
+Les cas indéterminés sont dans `data/gold/couverture_indeterminee.parquet`.
+Voir [le contrat, les limites et les contrôles](../docs/couverture_ara.md).
+
+```bash
+python geo/build_couverture.py --workers 2
+# Pour reprendre un dossier existant : ajouter --reprendre.
+python geo/validate_couverture.py --publier-dans data/gold
+```
+
+Les candidats sont les centres des carreaux habités, pas des implantations
+validées. La sélection, les coûts et les gains après retrait de la desserte
+existante appartiennent au rôle 4. Les isochrones polygonaux régionaux restent
+un livrable séparé de cette matrice routée.
+
+## Préparation du réseau régional ARA
+
+Livraison du 20 octobre 2026 : **835/835 tuiles construites et contrôlées** dans
+`data/silver/reseau_ara_bidirectionnel/`, soit 16 608 205 nœuds OSM distincts et
+17 246 938 segments parcourables dans les deux sens. Le contrôle indépendant
+valide les identifiants, géométries, références, longueurs et temps de marche.
+Voir le [compte rendu](../docs/execution_reseau_ara.md). Les calculs **O1/O2 ARA
+sont terminés et contrôlés** sur 312 143 carreaux et 18 735 points d'offre,
+dont 901 stations vélo. Le dossier de livraison est
+`data/gold/accessibilite_ara/resultats/publics/` ; les statuts partiels et les
+15 offres non calculables sont conservés. Voir la
+[méthode, les effectifs et la reprise](../docs/accessibilite_ara.md).
+
+```bash
+python geo/build_accessibilite_ara.py --workers 2
+# Si le dossier existe déjà :
+python geo/build_accessibilite_ara.py --workers 2 --reprendre
+python geo/validate_accessibilite_ara.py
+```
+
+Ces commandes utilisent les sources figées et les raccordements contrôlés.
+Elles ne relancent pas la collecte ni la construction du réseau. Les tables
+`resultats/internes/`, `regroupement/` et les checkpoints restent techniques ;
+la diffusion O1 utilise les groupes publics d'au moins 20 habitants.
+
+Le contrôle des raccordements régionaux est disponible séparément :
+
+```bash
+docker compose build pipeline
+docker compose run --rm pipeline python geo/check_raccordements_ara.py
+```
+
+Il utilise les entrées figées et les GeoParquet du réseau, sans télécharger ni
+recollecter les données des autres rôles. Les distances, projections sur les
+voies et diagnostics sont écrits dans `data/silver/raccordements_ara/` :
+deux GeoParquet complets, des CSV et GeoJSON de points à examiner, et
+`raccordements_qc.json`. Le dossier final est publié seulement après contrôles ;
+un dossier existant n'est jamais remplacé. Pour un essai limité, utiliser
+`--tuiles x84_y651 x91_y645 --output-dir data/silver/raccordements_ara_validation`.
+Le statut reste alors explicitement partiel. Ce contrôle ne calcule aucun
+trajet ni O1/O2. Voir [raccordements_ara.md](../docs/raccordements_ara.md).
+
+Les 15 offres hors seuil ont été examinées dans les GTFS/GBFS et des
+extractions OSM brutes. Le script `audit_raccordements_offre.py` reproduit les
+groupes d'arrêts depuis leurs identifiants et coordonnées, recherche les
+références horaires et compare les voies proches au filtre du réseau. Le
+[diagnostic détaillé](../docs/audit_15_raccordements_offre_ara.md) précise les
+causes, les rôles concernés et les actions. Résultats dans
+`data/silver/audit_raccordements_offre_ara/` ; aucune correction source ni
+augmentation de seuil n'a été appliquée.
+
+Le [pilote de trajets Lyon](../docs/pilote_trajets_lyon.md) réutilise le moteur
+Grenoble sur les quatre tuiles régionales fusionnées, avec voisins et sans
+double compte des marges :
+
+```bash
+docker compose build pipeline
+docker compose run --rm pipeline python geo/build_pilote_lyon.py
+```
+
+Résultats actuels dans `data/gold/accessibilite_lyon_acces_stations/` : paires
+accessibles, cas indéterminés, O1/O2 et rapports. Deux accès extérieurs de
+Croix-Paquet sont configurés dans `geo/config/acces_stations.json`. Atteindre
+l'un des accès en cinq minutes suffit ; la station, ses fréquences et la
+population sont comptées une seule fois. Le graphe public et les coordonnées
+GTFS sont conservés. Voir [acces_stations.md](../docs/acces_stations.md).
+
+Le pilote initial sans accès reste dans `data/gold/accessibilite_lyon_validation/`
+avec sa revue dans `data/silver/validation_trajets_lyon/`. Les indicateurs
+actuels restent partiels pour les cas non résolus. Aucun calcul ARA complet
+n'est annoncé par ce pilote.
+
+`prepare_reseau_ara.py` prépare les entrées et le découpage de toute la région,
+sans téléchargement et sans construire encore le graphe. Les archives OSM
+Auvergne et Rhône-Alpes sont déjà dans `data/bronze/osm_ara/`.
+
+Utiliser explicitement la livraison validée des arrêts. Un ancien lancement
+avait ignoré TCL Lyon après une erreur HTTP 401 et omis `--contours`, puis
+publié une collecte partielle. Le collecteur a depuis été protégé et les
+fichiers actifs restaurés : un échec GTFS arrête maintenant la publication,
+les contours sont obligatoires et les contrôles précèdent le remplacement.
+Les entrées figées de cette préparation restent la référence du futur
+traitement régional.
+
+```bash
+docker compose run --rm --build pipeline python geo/prepare_reseau_ara.py \
+  --arrets "data/bronze/livraisons/transport_20261020T115246/arrets 2.parquet" \
+  --output-dir data/silver/preparation_reseau_ara
+```
+
+Le script refuse de remplacer un dossier de préparation existant : choisir un
+nouveau `--output-dir` pour une nouvelle version. Par défaut il exige les 19
+réseaux déclarés dans le collecteur GTFS, vérifie que les points d'offre sont
+dans les communes IGN, conserve les carreaux frontaliers et les capacités
+inconnues, et vérifie les SHA-256 des deux archives OSM. La présence d'un code
+de réseau ne prouve pas que tous ses arrêts sont présents ; l'exhaustivité reste
+limitée à la livraison contrôlée.
+
+Sorties dans le dossier demandé :
+
+| Fichier | Rôle |
+|---|---|
+| `entrees/contours.parquet`, `territoire.parquet` | Référentiel régional figé |
+| `entrees/arrets.parquet`, `stations_partagees.parquet`, `carreaux_socio.parquet` | Copies des entrées sélectionnées pour la préparation |
+| `entrees/gold_offre.parquet`, `gold_candidates.parquet` | Entrées dérivées avec noms des stations corrigés et affectation à une tuile |
+| `tuiles.parquet` | Grille Lambert 93 de 10 km, couvrant ARA et sa bordure ; effectifs de points par tuile principale |
+| `zones_extraction.parquet`, `.geojson` | Fenêtres de chaque tuile avec une marge supplémentaire de 1 km |
+| `plan_reseau_ara.json` | Sources, empreintes, hypothèses, effectifs et état explicite `graphe_construit: false` |
+
+La règle `floor(x / taille)`, `floor(y / taille)` attribue un seul propriétaire
+à chaque point, y compris sur une limite de tuile. Les copies de points dans
+les marges ne devront pas être recomptées dans O1/O2. Les fenêtres avec marge
+se chevauchent volontairement pour conserver les trajets entre tuiles. Le
+paramètre `calcul_population_offre_utile` indique les tuiles contenant des
+origines ; il ne constitue pas une autorisation de supprimer leurs voisines du
+réseau.
+
+`build_reseau_ara.py` construit maintenant les graphes depuis les PBF : fusion
+des objets OSM identiques, filtrage des accès piétons, traitement des
+barrières, contrôle des connexions et des poids, puis exports par tuile.
+Les validations de `build_reseau.py` sont réutilisées. Les versions OSM
+contradictoires et les données invalides provoquent un échec avant publication
+de la tuile. Hypothèse retenue pour le projet : **toute voie conservée peut être
+parcourue à pied dans les deux sens**, avec le même temps de marche. Les tags
+de direction et restrictions de virage sont ignorés et signalés dans le rapport.
+Les accès conditionnels sont exclus et comptés. Les voies cyclables autorisées
+explicitement à pied sont incluses.
+
+Les deux GeoParquet de nœuds et tronçons suffisent à reconstruire le graphe
+avec `load_tile_graph(dossier_tuile)`. L'export GraphML, coûteux pour 835 tuiles,
+est facultatif avec `--graphml`. Les contrôles incluent la relecture du graphe
+depuis les Parquet. Une seule extraction est effectuée par lot par défaut pour
+limiter la mémoire. Voir le suivi et la méthode dans
+[execution_reseau_ara.md](../docs/execution_reseau_ara.md).
+
+```bash
+docker compose build pipeline
+docker compose run --rm pipeline python geo/run_reseau_ara.py \
+  --tuiles x91_y645 x84_y651 --output-dir data/silver/reseau_ara_bidirectionnel
+```
+
+Pour traiter ensuite toutes les tuiles du plan et reprendre l'essai :
+
+```bash
+docker compose run --rm pipeline python geo/run_reseau_ara.py \
+  --output-dir data/silver/reseau_ara_bidirectionnel --reprendre
+```
+
+La reprise vérifie les empreintes et refuse de mélanger des versions de code,
+de plan ou d'archives différentes. Les tuiles sont publiées séparément après
+validation ; le bilan distingue une construction partielle de la couverture
+régionale complète. Voir les règles, sorties et limites dans
+[construction_reseau_ara.md](../docs/construction_reseau_ara.md).
+
+Le nouveau réseau suit le même modèle bidirectionnel que les scripts
+d'accessibilité actuels. Leur orchestration par tuile reste à mettre en place.
+Après validation des graphes, leur orchestration par tuile et la fusion des
+résultats seront nécessaires. La construction du réseau peut avancer sans
+modifier la formule O1 ; sa définition de publication reste à harmoniser avec
+le plan V5 avant de publier les indicateurs régionaux.
+
+```bash
+docker compose run --rm pipeline python -W error -m unittest discover \
+  -s tests -p test_prepare_reseau_ara.py -v
+```
+
 ## Préparer les contours
 
 `build_contours.py` lit des fichiers locaux IGN et écrit des GeoParquet en
@@ -395,8 +579,11 @@ O1 utilise uniquement les groupes. Les fichiers gold existants à la racine de
 `data/gold/` restent des entrées, les nouvelles sorties sont dans le dossier pilote.
 
 Résultats mesurés et limites de livraison : [bilan Grenoble](../docs/resultats_geomatique_grenoble.md).
-L'extension à Lyon/ARA et `gold_couverture` entre candidats et population restent
-à produire ; la relation carreaux–offre existante n'est pas cette couverture.
+L'extension à Lyon est validée. L'exécution O1/O2 ARA et sa reprise sont décrites
+dans [accessibilite_ara.md](../docs/accessibilite_ara.md). `gold_couverture` entre
+futurs emplacements candidats et population est désormais produite séparément ;
+voir [couverture_ara.md](../docs/couverture_ara.md). La relation carreaux–offre
+existante sert aux indicateurs actuels et conserve ses fichiers propres.
 
 Tests analytiques et exports (avec les contrôles des étapes précédentes) :
 

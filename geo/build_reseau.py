@@ -17,6 +17,7 @@ import networkx as nx
 import numpy as np
 import osmnx as ox
 import requests
+from pyproj import CRS as Projection
 from shapely import union_all
 
 
@@ -119,7 +120,8 @@ def prepare_graph(graph, speed_kmh):
     xy = np.array([(d.get("x", np.nan), d.get("y", np.nan)) for _, d in graph.nodes(data=True)], dtype=float)
     if not np.isfinite(xy).all():
         raise ValueError("Coordonnées de nœuds absentes ou non finies.")
-    graph = ox.project_graph(graph, to_crs=CRS)
+    if Projection.from_user_input(graph.graph["crs"]) != Projection.from_user_input(CRS):
+        graph = ox.project_graph(graph, to_crs=CRS)
     nodes, edges = ox.graph_to_gdfs(graph)
     bad = edges.geometry.isna() | edges.geometry.is_empty | ~edges.geometry.is_valid
     bad |= ~edges.geom_type.eq("LineString") | ~np.isfinite(edges.geometry.length) | edges.geometry.length.le(0)
@@ -134,9 +136,9 @@ def prepare_graph(graph, speed_kmh):
     nodes["composante_id"] = [membership[node] for node in nodes.index]
     for node in graph:
         graph.nodes[node]["composante_id"] = membership[node]
-    for (u, v, key), row in edges.iterrows():
-        graph[u][v][key]["longueur_m"] = float(row.longueur_m)
-        graph[u][v][key]["temps_pieton_s"] = float(row.temps_pieton_s)
+    for (u, v, key), length, duration in zip(edges.index, edges.longueur_m.to_numpy(), edges.temps_pieton_s.to_numpy()):
+        graph[u][v][key]["longueur_m"] = float(length)
+        graph[u][v][key]["temps_pieton_s"] = float(duration)
     if not edges.index.is_unique or not nodes.index.is_unique:
         raise ValueError("Identifiants de nœuds ou de tronçons dupliqués.")
     return graph, nodes, edges, components

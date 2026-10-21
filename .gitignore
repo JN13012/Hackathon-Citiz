@@ -19,3 +19,4 @@ Thumbs.db
 # EDA Citiz : données brutes et cache local, jamais versionnés
 eda-citiz/donnees/
 eda-citiz/cache_citiz/
+eda-citiz/sorties/

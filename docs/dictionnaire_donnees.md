@@ -7,7 +7,7 @@ Conventions : colonnes en `snake_case`, géométries en Lambert 93 (EPSG:2154), 
 | Table | Rôle | Une ligne = | Colonnes | Manquants |
 |---|---|---|---|---|
 | `arrets` | 1 | un arrêt physique unique | `arret_id`, `nom`, `mode`, `nb_passages_jour`, `reseau`, `geometry` | aucune valeur manquante ; `nb_passages_jour` = 0 pour 6,8 % des arrêts (pas de service le jour de référence) ; mode « autre » pour 198 arrêts |
-| `reseau_pieton` | 2 | nœuds et tronçons orientés, pilote Grenoble + marge 1 km | nœuds : `noeud_id`, `composante_id`, `dans_territoire`, `dans_zone_marge`, `geometry` · tronçons : `de`, `vers`, `cle`, `longueur_m`, `temps_pieton_s`, tags `*_json`, `geometry` | tags OSM absents = texte JSON `null` ; voir rapport QC |
+| `reseau_pieton` | 2 | un nœud ou un arc orienté ; pilote Grenoble et ARA en 835 tuiles avec marge | nœuds : `noeud_id`, `composante_id` (locale à la tuile), `dans_territoire` (pilote) ou `dans_tuile` (ARA), `dans_zone_marge`, `geometry` · tronçons : `de`, `vers`, `cle`, `longueur_m`, `temps_pieton_s`, tags `*_json`, `geometry` ; ARA ajoute `osmid`, `segment_osm`, `direction_osm` (1 et -1 présents pour chaque segment) | tags OSM absents = texte JSON `null` ; 835 tuiles contrôlées dans `data/silver/reseau_ara_bidirectionnel/` ; les marges contiennent des copies à dédupliquer pour les effectifs régionaux |
 | `contours` | 2 | une commune, un EPCI ou un IRIS | `code_insee`, `nom`, `niveau`, `geometry` | à remplir |
 | `carreaux_socio` | 3 | un carreau de 200 m | `id_carreau`, `population`, `menages`, `revenu`, `part_menages_sans_voiture`, `nb_equipements`, `emplois`, `donnee_masquee`, `geometry` (+ colonnes complémentaires, détail ci-dessous) | `code_iris` : 483 · autres : 0 |
 | `equipements` | 3 | un équipement BPE 2025 géolocalisé | `code_commune`, `typequ`, `domaine`, `geometry` | 0 |
@@ -26,12 +26,12 @@ Conventions : colonnes en `snake_case`, géométries en Lambert 93 (EPSG:2154), 
 
 | Table | Rôle | Contenu | Échéance |
 |---|---|---|---|
-| `gold_offre` | 1 | un point par arrêt ou station : `offre_id`, `source` (`arrets` ou `stations_partagees`), `type` (bus, tram, métro, vélo, Citiz, autopartage…), `nom`, `operateur`, `valeur` (passages/jour pour un arrêt, capacité pour une station), `unite`, `geometry` ; `valeur` vide pour 5 stations sans capacité | mardi 10 h 30 |
+| `gold_offre` | 1 | un point par arrêt ou station : `offre_id`, `source` (`arrets` ou `stations_partagees`), `type` (bus, tram, métro, vélo, Citiz, autopartage…), `nom`, `operateur`, `valeur` (passages/jour pour un arrêt, capacité pour une station), `unite`, `geometry`, `code_commune` (code INSEE des stations partagées, vide pour les arrêts sans ce champ) ; `nom` conserve le libellé source ou un identifiant de secours ; `valeur` vide pour 5 stations sans capacité | mardi 10 h 30 |
 | `gold_candidates` | 1 | centroïdes des carreaux peuplés (312 143), avec `id_carreau`, `population`, `code_commune`, `faible_population`, `part_menages_sans_voiture` | mardi 11 h |
 | `gold_isochrones` | 2 | cible : polygone de 5 min à pied par carreau (`id_carreau`) ; pilote actuel : origines de type `arret` dans Grenoble, dossier dédié `isochrones_grenoble_arrets` ; tampon cartographique de chemins routés | mardi 11 h |
 | `gold_o1` | 2 | pilote Grenoble : options accessibles par habitant, par groupe de carreaux (minimum 20 habitants), dossier `accessibilite_grenoble` | mardi 12 h 30 |
 | `gold_o2` | 2 | pilote Grenoble : population à 5 min de chacun des 303 arrêts/stations, voisins inclus, dossier `accessibilite_grenoble` | mardi 12 h 30 |
-| `gold_couverture` | 2 | pour chaque candidat, les carreaux à moins de 5 min | mardi 14 h |
+| `gold_couverture` | 2 | livré : relation `id_candidat`, `id_carreau`, `temps_pieton_s` ; 563 613 paires ARA à au plus 300 s, avec synthèse des candidats et inconnues séparées ; voir [couverture_ara.md](couverture_ara.md) | mardi 14 h |
 | `gold_features` | 3 | variables socio-économiques et d'intermodalité par isochrone | mardi 12 h |
 | `gold_scores` | 3 | usage potentiel prédit par candidat et par type | mardi 16 h 30 |
 
@@ -103,7 +103,7 @@ CSV sans géométrie et GeoJSON (EPSG:4326). Les codes et identifiants sont du t
 | `gold_o1.passages_jour_<mode>_par_habitant` | Somme des passages/jour des arrêts accessibles par centre, puis moyenne pondérée par la population ; compte les passages à des arrêts distincts | vide si une fréquence concernée manque ou si calcul incomplet |
 | `gold_o1.capacite_<mode>_par_habitant` | Capacité cumulée des stations accessibles par centre, puis moyenne pondérée ; séparée des fréquences | vide si une capacité concernée manque ou si calcul incomplet |
 | `gold_o1.population_evaluee`, `statut` | Population avec calcul complet ; `ok`, `partiel` ou `population_insuffisante` | population évaluée masquée si groupe sous le seuil |
-| `gold_o2.offre_id`, `source`, `type`, `nom`, `operateur`, `valeur`, `unite`, `geometry` | Point d'offre source dans Grenoble ; valeur = passages/jour pour un arrêt, capacité pour une station ; `nom` conservé du gold fourni (code commune pour certaines stations) | valeurs manquantes conservées |
+| `gold_o2.offre_id`, `source`, `type`, `nom`, `code_commune`, `operateur`, `valeur`, `unite`, `geometry` | Point d'offre source dans Grenoble ; valeur = passages/jour pour un arrêt, capacité pour une station ; noms des stations corrigés depuis le silver, code commune conservé séparément | valeurs manquantes conservées ; code commune vide pour les arrêts |
 | `gold_o2.population_desservie` | Somme des populations de centres accessibles en 300 s, voisins inclus ; jamais arrondie à l'entier dans la table | vide si raccordement impossible ou population potentiellement accessible non calculée |
 | `gold_o2.population_desservie_dans_pilote` | Sous-ensemble dont les centres sont dans Grenoble | idem |
 | `gold_o2.nb_carreaux_desservis`, `statut` | Nombre distinct de centres accessibles ; `ok`, `partiel` ou `non_calcule` | nombre vide si calcul incomplet |
@@ -119,6 +119,89 @@ leur centre, sans correction de leur population. Les populations O2 se
 recouvrent entre stations : ne pas les additionner pour une population unique.
 La somme des populations O1 doit être égale à celle des carreaux sélectionnés,
 pas forcée à une population administrative de référence.
+
+### Raccordements régionaux ARA
+
+Dossier interne `data/silver/raccordements_ara/`, distinct des indicateurs du
+pilote : une ligne par centre de population ou point d'offre, chacun dans sa
+tuile principale. GeoParquet EPSG:2154 ; les GeoJSON d'examen sont en EPSG:4326.
+Les petits effectifs INSEE restent présents : agréger avant publication publique.
+
+| Colonne | Définition |
+|---|---|
+| `id_carreau` ou `offre_id`, `tuile_id`, `geometry` | Identifiant et point source ; les marges ne créent pas de copies de points |
+| `statut` | `ok`, `raccordement_trop_loin` ou `budget_acces_epuise` ; `ok` ne prouve pas un trajet de 5 minutes |
+| `distance_raccordement_m`, `temps_acces_s`, `seuil_raccordement_m` | Raccord droit hypothétique, coût à 4,5 km/h ; seuil de 150 m pour la population et 50 m pour l'offre |
+| `raccord_de`, `raccord_vers`, `raccord_cle`, `abscisse_raccord_m` | Arc choisi, stable par ordre `(de, vers, cle)` en cas d'égalité ; abscisse dans son sens |
+| `raccord_x`, `raccord_y` | Coordonnées projetées sur le segment, en Lambert 93 |
+| `composante_locale_id`, `composante_locale_noeuds`, `composante_locale_minoritaire` | Composante de la fenêtre avec marge, taille et appartenance hors de la plus grande ; ne prouve pas un isolement régional |
+| `nb_troncons_equidistants`, `nb_composantes_equidistantes` | Égalités entre segments physiques et composantes distinctes ; les arcs aller-retour ne sont pas comptés deux fois |
+| `recherche_bornee_par_marge` | Distance trouvée dépassant la distance au bord de fenêtre : minimum régional non garanti, rejet au seuil toujours valide |
+| `entree_metro_a_verifier`, `a_examiner` | Métro signalé systématiquement ; examen aussi si statut non `ok`, composante secondaire ou égalité entre composantes |
+
+### Accès de stations — pilote Lyon MVP
+
+Dossier actuel `data/gold/accessibilite_lyon_acces_stations/`. Configuration
+dans `geo/config/acces_stations.json`. Croix-Paquet conserve son identifiant
+et sa géométrie GTFS ; deux accès extérieurs sont des destinations alternatives.
+Le temps jusqu'au quai après l'accès n'est pas modélisé.
+
+| Table / champ | Définition |
+|---|---|
+| `acces_stations.acces_id`, `offre_id`, `noeud_osm`, `geometry` | Identifiant stable de l'accès, lien à la station logique et nœud extérieur OSM servant de destination |
+| `station_source_x`, `station_source_y`, `distance_station_source_m` | Coordonnées GTFS conservées séparément et écart descriptif au point d'accès ; cet écart n'est pas ajouté au temps d'arrivée |
+| `source`, `hypothese`, `voie_osm`, `tourniquet_osm` | Provenance OSM et hypothèse MVP acceptée ; aucune entrée officielle ou visite terrain n'est présumée |
+| `raccordements_acces_stations` | Un diagnostic réel par accès, ancré à son identifiant OSM |
+| `accessibilite_carreaux_offres.acces_id` | Accès retenu pour le minimum de temps ; vide pour une arrivée au point source. Une paire unique par carreau et station |
+| `gold_o2.nb_acces_pietons`, `mode_arrivee` | Deux accès pour Croix-Paquet et mode `acces_exterieur_station` ; zéro accès explicite et mode `coordonnees_source` pour les autres offres |
+| `raccordements_offre.via_acces_station`, `nb_acces`, `nb_acces_calculables` | Diagnostic au niveau de la station ; projection unique du point GTFS vide lorsqu'il est remplacé pour le calcul par les accès |
+
+O1 compte une station accessible une seule fois, même si deux accès sont
+atteints ; O2 somme une fois la population de chaque carreau desservi. Le
+réseau n'autorise aucun passage d'un accès à l'autre par la station.
+
+### O1/O2 régionaux ARA
+
+Sorties dans `data/gold/accessibilite_ara/resultats/publics/` ; méthode et reprise
+dans [accessibilite_ara.md](accessibilite_ara.md). Les unités et la formule O1
+restent celles du pilote. Un groupe O1 peut traverser une limite communale.
+
+| Champ / table | Définition |
+|---|---|
+| `gold_o1.groupe_id`, `nb_carreaux`, `population` | Groupe de publication, nombre de carreaux entiers et population fiscale ; minimum 20 habitants |
+| `gold_o1.population_evaluee`, `statut` | Population des membres entièrement calculables ; `ok`, `partiel` ou `population_insuffisante` |
+| `gold_o1.options_par_habitant`, `options_<mode>_par_habitant` | Moyenne du nombre de points atteignables, pondérée par la population ; aucune valeur complète si une paire du groupe reste indéterminée |
+| `gold_o1.passages_jour_<mode>_par_habitant`, `capacite_<mode>_par_habitant` | Moyennes pondérées des valeurs sources ; unités séparées, capacité inconnue conservée manquante |
+| `*_min` | Contribution connue ; ne remplace pas une valeur complète lorsque le calcul est partiel |
+| `gold_o2.population_desservie`, `nb_carreaux_desservis` | Somme de population et nombre de centres atteignant la station en 300 s ; non additionnables entre stations |
+| `gold_o2.statut` | `ok`, `partiel` si une paire est indéterminée, `non_calcule` si le point d'offre n'a pas de raccordement valide |
+| `gold_o2.nb_acces_pietons`, `mode_arrivee` | Deux et `un_des_acces_exterieurs` pour Croix-Paquet ; zéro et `point_source_raccorde` pour les autres points |
+| `internes/paires_accessibles.acces_id` | Identifiant de l'accès gagnant, vide pour les autres points ; minimum de temps et paire carreau–station unique |
+| `internes/paires_indeterminees.motif` | Cause du raccordement non calculable ou segment cible absent de la tuile source ; ce n'est pas une absence de desserte |
+
+Les petits carreaux individuels, correspondances, raccordements et checkpoints
+restent des tables techniques internes ; la diffusion O1 utilise les groupes.
+
+### Couverture des candidats ARA
+
+Tables de calcul détaillées pour les rôles 3 et 4, dans `data/gold/`. Méthode
+et résultats mesurés : [couverture_ara.md](couverture_ara.md).
+
+| Table / champ | Définition |
+|---|---|
+| `gold_couverture.id_candidat` | Identifiant de l'emplacement théorique, égal à `gold_candidates.id_carreau` |
+| `gold_couverture.id_carreau` | Identifiant du carreau de population cible ; jointure à `carreaux_socio` |
+| `gold_couverture.temps_pieton_s` | Trajet connu à au plus 300 s, raccord candidat ≤ 50 m et population ≤ 150 m inclus |
+| `candidats_couverture` | Un candidat par centre source, géométrie conservée, `id_carreau_origine`, statut et mesures de couverture |
+| `candidats_couverture.statut`, `utilisable_optimiseur` | `ok`, `partiel`, `non_calcule` ; booléen vrai seulement pour un calcul entièrement déterminé |
+| `population_couverte`, `nb_carreaux_couverts`, suffixe `_min` | Population et nombre de carreaux par candidat ; valeurs complètes absentes en cas d'échec, contribution connue distincte en cas partiel |
+| `couverture_indeterminee` | Les deux identifiants et `motif` ; raccord candidat ou population hors seuil, éventuellement segment cible absent |
+| `gold_couverture_qc`, `gold_couverture_controle` | Rapport du calcul et contrôle indépendant, empreintes des entrées et sorties |
+
+Une même personne peut être couverte par plusieurs candidats. Calculer l'union
+des `id_carreau` avant de sommer la population ; retrancher séparément la
+desserte existante pour obtenir les habitants gagnés. Aucun futur emplacement
+n'est retenu ou validé techniquement par cette matrice.
 
 ### Règles communes
 
