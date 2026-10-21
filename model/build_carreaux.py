@@ -16,11 +16,14 @@ Code de sortie : 0 si tous les contrôles passent, 1 sinon.
 import argparse
 import datetime
 import glob
+import http.client
 import io
 import os
 import re
 import shutil
 import sys
+import time
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -98,14 +101,27 @@ def main(argv=None):
         if url.startswith(("http://", "https://")):
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             partiel = f"{chemin}.{os.getpid()}.part"   # propre au processus : deux lancements simultanés ne se gênent pas
-            with urllib.request.urlopen(req, timeout=600) as r, open(partiel, "wb") as f:
-                total, recu, palier = int(r.headers.get("Content-Length") or 0), 0, 0
-                while bloc := r.read(1 << 20):
-                    f.write(bloc)
-                    recu += len(bloc)
-                    if recu >= palier + 20e6:   # un point d'avancement tous les 20 Mo
-                        palier = recu
-                        print(f"      {recu / 1e6:,.0f} Mo" + (f" / {total / 1e6:,.0f} Mo" if total else ""))
+            # Le serveur INSEE coupe parfois la connexion (IncompleteRead) : on recommence avant d'abandonner.
+            for essai in range(4):
+                try:
+                    with urllib.request.urlopen(req, timeout=600) as r, open(partiel, "wb") as f:
+                        total, recu, palier = int(r.headers.get("Content-Length") or 0), 0, 0
+                        while bloc := r.read(1 << 20):
+                            f.write(bloc)
+                            recu += len(bloc)
+                            if recu >= palier + 20e6:   # un point d'avancement tous les 20 Mo
+                                palier = recu
+                                print(f"      {recu / 1e6:,.0f} Mo" + (f" / {total / 1e6:,.0f} Mo" if total else ""))
+                    if total and recu != total:
+                        raise http.client.IncompleteRead(b"", total - recu)
+                    break
+                except (http.client.HTTPException, urllib.error.URLError, OSError) as e:
+                    if os.path.exists(partiel):
+                        os.remove(partiel)
+                    if essai == 3:
+                        raise
+                    print(f"   téléchargement interrompu ({type(e).__name__}), nouvel essai dans {5 * 2 ** essai} s")
+                    time.sleep(5 * 2 ** essai)
             os.replace(partiel, chemin)
         else:
             shutil.copy(url.replace("file://", ""), chemin)
