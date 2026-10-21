@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 STEPS = [
+    ("Rôle 2 - contours IGN (silver)",                ["geo/download_contours_ign.py"]),
     ("Rôle 1 - table arrets (silver)", ["scripts/build_arrets.py", "--contours", "data/silver/contours.parquet"]),
     # ("Rôle 2 - réseau piéton et contours (silver)", ["geo/build_reseau.py"]),
     ("Rôle 3 - carreaux_socio (silver)",            ["model/build_carreaux.py"]),
