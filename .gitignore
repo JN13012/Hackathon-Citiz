@@ -2,6 +2,7 @@
 data/bronze/*
 data/silver/*
 data/gold/*
+data/france/
 !data/*/.gitkeep
 
 # Python

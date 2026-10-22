@@ -9,7 +9,8 @@ sur n'importe quelle machine.
 Un contours.parquet déjà présent (par exemple construit depuis les fichiers IGN du Rôle 2)
 est conservé ; --refresh le reconstruit.
 
-Usage : python geo/download_contours_ign.py [--region 84] [--refresh] [--sans-iris]
+Usage : python geo/download_contours_ign.py [--region 84 ...] [--refresh] [--sans-iris]
+Par défaut, les régions du territoire (optim/territoire.py, variable TERRITOIRE).
 """
 import argparse
 import sys
@@ -24,6 +25,8 @@ import requests
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import build_contours  # noqa: E402  (script du Rôle 2, utilisé tel quel)
+sys.path.insert(0, str(ROOT / "optim"))
+import territoire as T  # noqa: E402
 
 WFS = "https://data.geopf.fr/wfs/ows"
 LAYERS = {"commune": "ADMINEXPRESS-COG.LATEST:commune", "epci": "ADMINEXPRESS-COG.LATEST:epci",
@@ -31,7 +34,7 @@ LAYERS = {"commune": "ADMINEXPRESS-COG.LATEST:commune", "epci": "ADMINEXPRESS-CO
           "iris": "STATISTICALUNITS.IRIS:contours_iris"}
 PAGE = 5000
 BRONZE = ROOT / "data" / "bronze" / "ign"
-SILVER = ROOT / "data" / "silver"
+SILVER = T.SILVER
 
 
 def get_features(layer, cql=None):
@@ -64,11 +67,17 @@ def get_features(layer, cql=None):
     return gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), crs=2154)
 
 
-def download(region, with_iris):
-    """Couches ADMIN EXPRESS (et IRIS) de la région, enregistrées en GeoPackage dans data/bronze/ign/."""
+def download(regions, with_iris, refresh=False):
+    """Couches ADMIN EXPRESS (et IRIS) des régions, enregistrées en GeoPackage dans data/bronze/ign/."""
     BRONZE.mkdir(parents=True, exist_ok=True)
-    admin = BRONZE / f"admin_express_wfs_{region}.gpkg"
-    communes = get_features(LAYERS["commune"], f"code_insee_de_la_region='{region}'")
+    tag = regions[0] if len(regions) == 1 else T.NOM  # une région : nom de fichier ARA inchangé
+    admin = BRONZE / f"admin_express_wfs_{tag}.gpkg"
+    iris_cached = BRONZE / f"iris_wfs_{tag}.gpkg"
+    if not refresh and admin.exists() and (not with_iris or iris_cached.exists()):
+        print(f"   fichiers IGN déjà téléchargés réutilisés : {admin.name}" + (f", {iris_cached.name}" if with_iris else ""))
+        return admin, iris_cached if with_iris else None
+    liste = ",".join(f"'{r}'" for r in regions)
+    communes = get_features(LAYERS["commune"], f"code_insee_de_la_region IN ({liste})")
     print(f"   communes : {len(communes)}")
     # EPCI de ces communes (une commune peut lister plusieurs SIREN séparés par « / »)
     sirens = set(communes["codes_siren_des_epci"].dropna().str.split("/").explode().str.strip())
@@ -89,7 +98,7 @@ def download(region, with_iris):
         iris = pd.concat([get_features(LAYERS["iris"], f"code_insee LIKE '{d}%'") for d in deps], ignore_index=True)
         iris = gpd.GeoDataFrame(iris, crs=2154)
         print(f"   IRIS : {len(iris)}")
-        iris_path = BRONZE / f"iris_wfs_{region}.gpkg"
+        iris_path = BRONZE / f"iris_wfs_{tag}.gpkg"
         if iris_path.exists():
             iris_path.unlink()
         iris.to_file(iris_path, layer="iris", driver="GPKG")
@@ -98,7 +107,8 @@ def download(region, with_iris):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--region", default="84", help="code région INSEE (84 = Auvergne-Rhône-Alpes)")
+    ap.add_argument("--region", nargs="+", default=T.CODES if T.NIVEAU == "region" else ["84"],
+                    help="code(s) région INSEE (84 = Auvergne-Rhône-Alpes), par défaut ceux du territoire")
     ap.add_argument("--refresh", action="store_true", help="reconstruire contours.parquet même s'il existe")
     ap.add_argument("--sans-iris", action="store_true", help="ne pas télécharger les IRIS")
     ap.add_argument("--output-dir", type=Path, default=SILVER)
@@ -108,12 +118,12 @@ def main(argv=None):
     if target.exists() and not args.refresh:
         print(f"{target.relative_to(ROOT)} existe déjà : conservé (--refresh pour le reconstruire)")
         return 0
-    print(f"Contours IGN (WFS) de la région {args.region}")
-    admin, iris = download(args.region, not args.sans_iris)
+    print(f"Contours IGN (WFS) : région(s) {', '.join(args.region)}")
+    admin, iris = download(args.region, not args.sans_iris, args.refresh)
     cmd = ["--communes", str(admin), "--communes-layer", "commune",
            "--epci", str(admin), "--epci-layer", "epci",
            "--arrondissements", str(admin), "--arrondissements-layer", "arrondissement_municipal",
-           "--region", args.region, "--output-dir", str(args.output_dir),
+           "--region", *args.region, "--output-dir", str(args.output_dir),
            "--millesime", f"ADMIN EXPRESS COG LATEST, service WFS IGN, {date.today().isoformat()}"]
     if iris:
         cmd += ["--iris", str(iris), "--iris-layer", "iris"]

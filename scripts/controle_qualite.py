@@ -8,11 +8,12 @@ import pandas as pd
 from scipy.spatial import cKDTree
 
 ROOT = Path(__file__).resolve().parent.parent
-SILVER = ROOT / "data" / "silver"
-GOLD = ROOT / "data" / "gold"
+sys.path.insert(0, str(ROOT / "optim"))
+import territoire as T  # noqa: E402  (territoire : TERRITOIRE=ara|france)
+SILVER, GOLD = T.SILVER, T.GOLD
 CRS = "EPSG:2154"
-# Cadre large d'Auvergne-Rhône-Alpes en Lambert 93 (x min, y min, x max, y max), en mètres
-BBOX_ARA = (600_000, 6_300_000, 1_060_000, 6_700_000)
+# Cadre large du territoire en Lambert 93 (x min, y min, x max, y max), en mètres
+CADRE = T.CADRE
 
 problemes = []
 lignes = []
@@ -48,8 +49,8 @@ def controle_points(gdf, nom_table, col_id):
     verifie(not gdf.geometry.is_empty.any() and not gdf.geometry.isna().any(), "aucune géométrie vide")
     verifie(gdf[col_id].is_unique, f"{col_id} unique")
     x, y = gdf.geometry.x, gdf.geometry.y
-    dedans = (x >= BBOX_ARA[0]) & (x <= BBOX_ARA[2]) & (y >= BBOX_ARA[1]) & (y <= BBOX_ARA[3])
-    verifie(dedans.all(), f"tous les points dans le cadre Auvergne-Rhône-Alpes ({(~dedans).sum()} hors cadre)")
+    dedans = (x >= CADRE[0]) & (x <= CADRE[2]) & (y >= CADRE[1]) & (y <= CADRE[3])
+    verifie(dedans.all(), f"tous les points dans le cadre {T.LIBELLE} ({(~dedans).sum()} hors cadre)")
     manquants = gdf.drop(columns="geometry").isna().sum()
     manquants = manquants[manquants > 0]
     log("valeurs manquantes : " + (", ".join(f"{c}={n}" for c, n in manquants.items()) or "aucune"))

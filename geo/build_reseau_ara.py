@@ -32,7 +32,7 @@ sys.path.insert(0, str(ROOT))
 from geo.build_reseau import prepare_graph, route_checks
 from geo.prepare_reseau_ara import sha256
 
-RULE_VERSION = 2
+RULE_VERSION = 3
 PUBLIC = {"yes", "designated", "official", "permissive"}
 WALK_HIGHWAYS = {
     "residential", "living_street", "service", "unclassified", "tertiary", "tertiary_link",
@@ -148,6 +148,14 @@ def graph_from_objects(nodes, ways, restrictions, zone, speed):
     transformer = Transformer.from_crs(4326, 2154, always_xy=True)
     xs, ys = transformer.transform([nodes[n]["lon"] for n in refs], [nodes[n]["lat"] for n in refs])
     positions = dict(zip(refs, zip(xs, ys)))
+    # Règles v3 : deux nœuds OSM distincts au même endroit, consécutifs sur une voie (cas rencontré en
+    # Nouvelle-Aquitaine) : le second est décalé de 1 mm pour garder la voie continue, au lieu d'arrêter
+    # la construction. Les tuiles construites en v2 ne contenaient pas ce cas (il était refusé).
+    for way, _, _ in selected.values():
+        for u, v in zip(way["refs"], way["refs"][1:]):
+            if u != v and positions[u] == positions[v]:
+                positions[v] = (positions[v][0] + 0.001, positions[v][1])
+                counts["noeuds_superposes_decales_1mm"] += 1
     if not np.isfinite([xy for xy in positions.values()]).all():
         raise ValueError("Coordonnées non finies après projection")
     blocked = {n for n in refs if not node_passable(nodes[n]["tags"])}

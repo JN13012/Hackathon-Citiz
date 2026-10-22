@@ -1,23 +1,68 @@
 """Territoire d'analyse du Rôle 4 : les sources sont nettoyées au niveau national, puis recoupées ici.
 
-Changer de territoire = modifier NIVEAU / CODES (ou passer --contours) et relancer les scripts.
+Changer de territoire = variable d'environnement TERRITOIRE (ara par défaut, france) ou --contours,
+puis relancer les scripts (`python scripts/run_all.py --territoire france`).
 Contours : fichier `contours` du Rôle 2 s'il est fourni, sinon communes de geo.api.gouv.fr (cache en bronze).
+
+Les sources nationales restent partagées dans data/bronze/ ; les tables d'un autre territoire que
+l'ARA sont écrites à part (data/<territoire>/silver, gold, bronze pour les relevés filtrés) pour ne
+jamais remplacer les résultats ARA.
 """
 import json
+import os
 from pathlib import Path
 
 import geopandas as gpd
 import requests
 
 ROOT = Path(__file__).resolve().parent.parent
-BRONZE = ROOT / "data" / "bronze"
-SILVER = ROOT / "data" / "silver"
 CRS_LAMBERT93 = 2154
 
-# Territoire D1 : Auvergne-Rhône-Alpes (grande ville : Lyon), choix d'équipe du 19/10.
-# Niveaux : region, departement, epci (SIREN), commune (code INSEE)
-NIVEAU = "region"
-CODES = ["84"]
+# Régions de France métropolitaine (codes INSEE) et leurs départements, Corse comprise
+REGIONS_METROPOLE = {
+    "11": ["75", "77", "78", "91", "92", "93", "94", "95"],  # Île-de-France
+    "24": ["18", "28", "36", "37", "41", "45"],  # Centre-Val de Loire
+    "27": ["21", "25", "39", "58", "70", "71", "89", "90"],  # Bourgogne-Franche-Comté
+    "28": ["14", "27", "50", "61", "76"],  # Normandie
+    "32": ["02", "59", "60", "62", "80"],  # Hauts-de-France
+    "44": ["08", "10", "51", "52", "54", "55", "57", "67", "68", "88"],  # Grand Est
+    "52": ["44", "49", "53", "72", "85"],  # Pays de la Loire
+    "53": ["22", "29", "35", "56"],  # Bretagne
+    "75": ["16", "17", "19", "23", "24", "33", "40", "47", "64", "79", "86", "87"],  # Nouvelle-Aquitaine
+    "76": ["09", "11", "12", "30", "31", "32", "34", "46", "48", "65", "66", "81", "82"],  # Occitanie
+    "84": ["01", "03", "07", "15", "26", "38", "42", "43", "63", "69", "73", "74"],  # Auvergne-Rhône-Alpes
+    "93": ["04", "05", "06", "13", "83", "84"],  # Provence-Alpes-Côte d'Azur
+    "94": ["2A", "2B"],  # Corse
+}
+
+# Territoires prévus. Niveaux : region, departement, epci (SIREN), commune (code INSEE).
+# cadre : rectangle large en Lambert 93 (x min, y min, x max, y max) pour le contrôle qualité.
+TERRITOIRES = {
+    # D1 : Auvergne-Rhône-Alpes (grande ville : Lyon), choix d'équipe du 19/10
+    "ara": {"niveau": "region", "codes": ["84"], "dossier": None,
+            "cadre": (600_000, 6_300_000, 1_060_000, 6_700_000), "libelle": "Auvergne-Rhône-Alpes"},
+    # extension à toute la France métropolitaine, Corse comprise (demande du 21/10)
+    "france": {"niveau": "region", "codes": list(REGIONS_METROPOLE), "dossier": "france",
+               "cadre": (60_000, 6_020_000, 1_260_000, 7_130_000), "libelle": "France métropolitaine"},
+}
+NOM = os.environ.get("TERRITOIRE", "ara").strip().lower()
+if NOM not in TERRITOIRES:
+    raise SystemExit(f"TERRITOIRE inconnu : {NOM!r} (choix : {', '.join(TERRITOIRES)})")
+NIVEAU = TERRITOIRES[NOM]["niveau"]
+CODES = TERRITOIRES[NOM]["codes"]
+CADRE = TERRITOIRES[NOM]["cadre"]
+LIBELLE = TERRITOIRES[NOM]["libelle"]
+# départements du territoire (None si le territoire n'est pas défini par régions ou départements)
+DEPARTEMENTS = ([d for c in CODES for d in REGIONS_METROPOLE[c]] if NIVEAU == "region"
+                else list(CODES) if NIVEAU == "departement" else None)
+
+BRONZE = ROOT / "data" / "bronze"  # sources nationales, partagées entre territoires
+_dossier = TERRITOIRES[NOM]["dossier"]
+DATA = ROOT / "data" / _dossier if _dossier else ROOT / "data"
+SILVER, GOLD = DATA / "silver", DATA / "gold"
+BRONZE_TERRITOIRE = DATA / "bronze" if _dossier else BRONZE  # relevés filtrés sur le territoire (GBFS)
+# accès à 5 min (paires carreau-offre) : livraison Rôle 2 pour l'ARA, assemblage des régions sinon
+ACCESSIBILITE = GOLD / "accessibilite_ara" if NOM == "ara" else GOLD / "accessibilite"
 GEO_API = "https://geo.api.gouv.fr"
 FILTRE = {"region": "codeRegion", "departement": "codeDepartement", "epci": "codeEpci"}
 

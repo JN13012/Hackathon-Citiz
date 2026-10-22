@@ -1,4 +1,5 @@
-"""Archive les deux extraits OSM Geofabrik couvrant l'ARA, avec contrôle MD5."""
+"""Archive les extraits OSM Geofabrik, avec contrôle MD5 : les deux couvrant l'ARA, ou --france
+pour la France métropolitaine, Corse comprise (france-latest, environ 5 Go)."""
 import argparse
 from datetime import datetime, timezone
 import hashlib
@@ -20,10 +21,13 @@ def checksum(path, algorithm="sha256"):
     return digest.hexdigest()
 
 
-def download(output_dir):
+FRANCE = {"france-latest": "https://download.geofabrik.de/europe/france-latest.osm.pbf"}
+
+
+def download(output_dir, sources=SOURCES):
     output_dir.mkdir(parents=True, exist_ok=True)
     rows = []
-    for name, url in SOURCES.items():
+    for name, url in sources.items():
         path = output_dir / f"{name}.osm.pbf"
         request = urllib.request.Request(url + ".md5", headers={"User-Agent": "MobilityCitizHackathon/1.0"})
         with urllib.request.urlopen(request, timeout=60) as response:
@@ -57,11 +61,14 @@ def download(output_dir):
     report = {"execution_utc": datetime.now(timezone.utc).isoformat(), "source": "Geofabrik / OpenStreetMap contributors",
               "licence": "ODbL", "archives": rows}
     (output_dir / "sources_osm.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
-    print("Archives OSM ARA téléchargées et vérifiées.", flush=True)
+    print("Archives OSM téléchargées et vérifiées.", flush=True)
     return report
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--output-dir", type=Path, default=ROOT / "data/bronze/osm_ara")
-    download(ap.parse_args().output_dir)
+    ap.add_argument("--france", action="store_true", help="France métropolitaine au lieu des deux extraits ARA")
+    ap.add_argument("--output-dir", type=Path, help="défaut : data/bronze/osm_ara, ou data/bronze/osm_france")
+    args = ap.parse_args()
+    output = args.output_dir or ROOT / ("data/bronze/osm_france" if args.france else "data/bronze/osm_ara")
+    download(output, FRANCE if args.france else SOURCES)

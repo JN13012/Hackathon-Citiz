@@ -121,15 +121,20 @@ class TopologyTests(unittest.TestCase):
             self.assertEqual(data["temps_pieton_s"], graph[v][u][key]["temps_pieton_s"])
         self.assertIs(WalkingNetwork(graph, 4.5).graph, graph)
 
-    def test_missing_nodes_and_zero_length_fail(self):
+    def test_missing_nodes_fail(self):
         nodes, ways = objects()
         del nodes[2]
         with self.assertRaisesRegex(ValueError, "références"):
             graph_from_objects(nodes, ways, {}, ZONE, 4.5)
+
+    def test_superposed_distinct_nodes_are_nudged_without_losing_connection(self):
+        # règles v3 : nœuds distincts au même endroit, décalés de 1 mm au lieu d'arrêter la construction
         nodes, ways = objects()
         nodes[2] = copy.deepcopy(nodes[1])
-        with self.assertRaisesRegex(ValueError, "coordonnées identiques"):
-            graph_from_objects(nodes, ways, {}, ZONE, 4.5)
+        graph, _, _, _, qc = graph_from_objects(nodes, ways, {}, ZONE, 4.5)
+        self.assertTrue(nx.has_path(graph, 1, 3))
+        self.assertEqual(qc["noeuds_superposes_decales_1mm"], 1)
+        self.assertTrue(all(d["longueur_m"] > 0 for _, _, d in graph.edges(data=True)))
 
     def test_duplicate_adjacent_reference_removed_without_losing_connection(self):
         nodes, ways = objects()

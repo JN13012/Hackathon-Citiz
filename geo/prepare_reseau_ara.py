@@ -34,12 +34,12 @@ def sha256(path):
     return digest.hexdigest()
 
 
-def read_table(path, key, geometry_types, required):
+def read_table(path, key, geometry_types, required, allow_empty=False):
     frame = gpd.read_parquet(path)
     missing = set([key, *required]) - set(frame.columns)
     if missing:
         raise ValueError(f"{path.name} : colonnes absentes {sorted(missing)}")
-    if frame.empty or frame.crs is None:
+    if (frame.empty and not allow_empty) or frame.crs is None:
         raise ValueError(f"{path.name} : table vide ou projection absente")
     frame = frame.to_crs(CRS)
     if frame[key].isna().any() or not frame[key].is_unique:
@@ -112,16 +112,22 @@ def prepare(args):
         raise ValueError("Les communes ne couvrent pas le territoire de référence")
     prepare_geometry(boundary)
     stops = read_table(args.arrets, "arret_id", ["Point"], ["nom", "mode", "reseau", "nb_passages_jour"])
-    stations = read_table(args.stations, "station_id", ["Point"], ["nom", "type", "operateur", "commune", "capacite"])
+    # une région peut n'avoir aucune station partagée (Corse) : table vide acceptée
+    stations = read_table(args.stations, "station_id", ["Point"], ["nom", "type", "operateur", "commune", "capacite"],
+                          allow_empty=True)
     population = read_table(args.population, "id_carreau", ["Polygon", "MultiPolygon"], ["population"])
     available = {name.strip() for name in ",".join(stops.reseau.dropna().astype(str)).split(",")}
     missing_networks = set(args.reseaux_requis) - available
     if missing_networks:
         raise ValueError(f"Livraison incomplète : réseaux absents {sorted(missing_networks)}")
+    # Découpage régional d'une étude plus large : les offres juste au-delà de la limite restent
+    # utiles aux carreaux frontaliers (marge d'offre). ARA : 0, toute offre doit être dans le territoire.
+    offer_zone = boundary.buffer(args.marge_offre_m) if args.marge_offre_m > 0 else boundary
+    prepare_geometry(offer_zone)
     for name, frame in [("arrêts", stops), ("stations", stations)]:
-        outside = ~covers(boundary, frame.geometry.to_numpy())
+        outside = ~covers(offer_zone, frame.geometry.to_numpy())
         if outside.any():
-            raise ValueError(f"{int(outside.sum())} {name} hors ARA : utiliser une livraison validée")
+            raise ValueError(f"{int(outside.sum())} {name} hors {'ARA' if args.region == '84' else 'du territoire'} : utiliser une livraison validée")
     for frame, column, positive in [(stops, "nb_passages_jour", False), (population, "population", True),
                                      (stations, "capacite", False)]:
         values = pd.to_numeric(frame[column], errors="raise")
@@ -130,7 +136,10 @@ def prepare(args):
             raise ValueError(f"Valeurs invalides dans {column}")
         if positive and known.le(0).any():
             raise ValueError("Population non positive")
-    if not intersects(boundary, population.geometry.to_numpy()).all():
+    # tolérance (découpage régional) : quelques carreaux INSEE littoraux débordent le trait de côte IGN
+    pop_zone = boundary.buffer(args.tolerance_population_m) if args.tolerance_population_m > 0 else boundary
+    prepare_geometry(pop_zone)  # contour côtier élargi : sans index, le test prend des dizaines de minutes
+    if not intersects(pop_zone, population.geometry.to_numpy()).all():
         raise ValueError("Des carreaux de population sont entièrement hors ARA")
     candidates = candidates_from_carreaux(population)
     if len(candidates) != len(population):
@@ -155,7 +164,7 @@ def prepare(args):
                            for row in tiles.itertuples(index=False)]
     source_manifest = json.loads((args.osm_dir / "sources_osm.json").read_text())
     archives = []
-    for name in ["auvergne", "rhone-alpes"]:
+    for name in args.archives:
         path = args.osm_dir / f"{name}.osm.pbf"
         source = next((s for s in source_manifest["archives"] if s["nom"] == name), None)
         if source is None or sha256(path) != source["sha256"]:
@@ -165,10 +174,11 @@ def prepare(args):
     if any(sha256(paths[name]) != digest for name, digest in hashes.items()):
         raise ValueError("Une source a été modifiée pendant la préparation")
     report = {
-        "execution_utc": datetime.now(timezone.utc).isoformat(), "region": "84", "crs": CRS,
+        "execution_utc": datetime.now(timezone.utc).isoformat(), "region": args.region, "crs": CRS,
         "etat": "preparation_terminee_graphe_non_construit", "graphe_construit": False,
         "parametres": {"taille_tuile_m": args.taille_tuile_m, "marge_m": args.marge_m,
-                       "duree_s": args.duree_s, "vitesse_kmh": args.vitesse_kmh},
+                       "duree_s": args.duree_s, "vitesse_kmh": args.vitesse_kmh, "marge_offre_m": args.marge_offre_m,
+                       "tolerance_population_m": args.tolerance_population_m},
         "sources": {name: {"chemin": str(path.resolve()), "sha256": hashes[name]} for name, path in paths.items()},
         "reseaux_requis": sorted(set(args.reseaux_requis)), "reseaux_presents": sorted(available),
         "script": {"chemin": str(Path(__file__).resolve()), "sha256": sha256(Path(__file__))},
@@ -205,7 +215,7 @@ def prepare(args):
         if args.output_dir.exists():
             raise ValueError("Le dossier de sortie est apparu pendant la préparation")
         stage.rename(args.output_dir)
-    print(f"Préparation ARA : {len(tiles)} tuiles, {len(offers)} offres, {len(population)} carreaux. Graphe non construit.", flush=True)
+    print(f"Préparation région {args.region} : {len(tiles)} tuiles, {len(offers)} offres, {len(population)} carreaux. Graphe non construit.", flush=True)
     return report
 
 
@@ -222,7 +232,14 @@ def parser():
     ap.add_argument("--marge-m", type=float, default=1000)
     ap.add_argument("--duree-s", type=float, default=300)
     ap.add_argument("--vitesse-kmh", type=float, default=4.5)
-    ap.add_argument("--reseaux-requis", nargs="+", default=list(NETWORKS), help="Réseaux attendus, 19 par défaut")
+    ap.add_argument("--reseaux-requis", nargs="*", default=list(NETWORKS), help="Réseaux attendus, les 19 de l'ARA par défaut")
+    ap.add_argument("--archives", nargs="+", default=["auvergne", "rhone-alpes"],
+                    help="archives <nom>.osm.pbf de --osm-dir, déclarées dans sources_osm.json")
+    ap.add_argument("--region", default="84", help="code région inscrit dans le plan")
+    ap.add_argument("--marge-offre-m", type=float, default=0,
+                    help="offres acceptées jusqu'à cette distance hors du territoire (découpage régional), 0 pour l'ARA")
+    ap.add_argument("--tolerance-population-m", type=float, default=0,
+                    help="carreaux acceptés jusqu'à cette distance hors des communes (trait de côte), 0 pour l'ARA")
     return ap
 
 

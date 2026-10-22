@@ -1,11 +1,13 @@
+import sys
 from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parent.parent
-SILVER = ROOT / "data" / "silver"
-GOLD = ROOT / "data" / "gold"
+sys.path.insert(0, str(ROOT / "optim"))
+import territoire as T  # noqa: E402  (territoire : TERRITOIRE=ara|france)
+SILVER, GOLD = T.SILVER, T.GOLD
 CRS = "EPSG:2154"
 
 

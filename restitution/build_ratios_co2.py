@@ -20,8 +20,9 @@ import pandas as pd
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-SILVER = ROOT / "data" / "silver"
-GOLD = ROOT / "data" / "gold"
+sys.path.insert(0, str(ROOT / "optim"))
+import territoire as T  # noqa: E402  (territoire : TERRITOIRE=ara|france)
+SILVER, GOLD = T.SILVER, T.GOLD
 SPEC = ROOT / "restitution" / "ratios_co2.yaml"
 DICTIONARY = ROOT / "docs" / "dictionnaire_donnees.md"
 IMPACT_IDS = {"facteur_voiture_thermique": 4, "facteur_voiture_electrique": 5, "facteur_bus_thermique": 9,

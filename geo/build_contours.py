@@ -17,6 +17,7 @@ from tempfile import TemporaryDirectory
 
 import geopandas as gpd
 import pandas as pd
+import shapely
 from shapely import union_all
 from shapely.geometry import MultiPolygon, Polygon
 
@@ -149,12 +150,16 @@ def polygon_part(geometry):
 
 
 def clip_to_territory(frame, territory):
-    selected = frame.loc[frame.geometry.intersects(territory)].copy()
-    clipped = gpd.GeoSeries(
-        [polygon_part(geometry) for geometry in selected.geometry.intersection(territory)],
-        index=selected.index,
-        crs=selected.crs,
-    )
+    # Contour préparé : les zones entièrement dans le territoire sont gardées telles quelles,
+    # seules celles qui touchent la limite sont découpées (indispensable à l'échelle de la France).
+    shapely.prepare(territory)
+    geoms = frame.geometry.to_numpy()
+    inside = shapely.covers(territory, geoms)
+    keep = inside | shapely.intersects(territory, geoms)
+    selected = frame.loc[keep].copy()
+    pieces = [g if covered else polygon_part(shapely.intersection(g, territory))
+              for g, covered in zip(geoms[keep], inside[keep])]
+    clipped = gpd.GeoSeries(pieces, index=selected.index, crs=selected.crs)
     changed = int((~selected.geometry.geom_equals(clipped)).sum())
     selected.geometry = clipped
     selected = selected.loc[~selected.geometry.is_empty & (selected.geometry.area > 0)].copy()
@@ -210,10 +215,13 @@ def build_contours(args):
             raise ValueError(f"Communes demandées absentes : {', '.join(sorted(missing))}")
         selection = {"codes_communes": sorted(wanted)}
     else:
-        region = args.region or "84"
+        regions = args.region or ["84"]
         region_col = column(communes, REGION_CODES)
-        selected = communes.loc[text_codes(communes[region_col]).eq(region)].copy()
-        selection = {"code_region": region}
+        selected = communes.loc[text_codes(communes[region_col]).isin(regions)].copy()
+        missing = set(regions) - set(text_codes(selected[region_col]))
+        if missing:
+            raise ValueError(f"Régions demandées absentes : {', '.join(sorted(missing))}")
+        selection = {"code_region": regions[0]} if len(regions) == 1 else {"codes_region": sorted(regions)}
     check_polygons(selected, "communes du territoire")
     selected = normalize(
         selected, "commune", selected[code_col], selected[column(selected, COMMUNE_NAMES)]
@@ -307,7 +315,7 @@ def parser():
     ap.add_argument("--arrondissements", type=Path, help="correspondance officielle arrondissement/commune, sinon détectée dans le GeoPackage des communes")
     ap.add_argument("--arrondissements-layer")
     territory = ap.add_mutually_exclusive_group()
-    territory.add_argument("--region", help="code région IGN, 84 (ARA) par défaut")
+    territory.add_argument("--region", nargs="+", help="code(s) région IGN, 84 (ARA) par défaut")
     territory.add_argument("--codes-communes", nargs="+", help="codes INSEE, par exemple 38185 pour Grenoble")
     ap.add_argument("--millesime", help="millésime déclaré des sources, sinon non renseigné dans le rapport")
     ap.add_argument("--output-dir", type=Path, default=ROOT / "data" / "silver")
@@ -320,8 +328,8 @@ def main(argv=None):
     for level in ("iris", "epci", "arrondissements"):
         if getattr(args, f"{level}_layer") and getattr(args, level) is None:
             ap.error(f"--{level}-layer nécessite --{level}")
-    if args.region and not re.fullmatch(r"\d{2}", args.region):
-        ap.error("--region attend un code à deux chiffres, par exemple 84")
+    if args.region and any(not re.fullmatch(r"\d{2}", code) for code in args.region):
+        ap.error("--region attend des codes à deux chiffres, par exemple 84")
     if args.codes_communes and any(
         not re.fullmatch(CODE_PATTERNS["commune"], code) for code in args.codes_communes
     ):

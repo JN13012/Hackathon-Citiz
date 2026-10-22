@@ -153,6 +153,7 @@ séparément du code ; ils restent exclus de Git.
 ```bash
 python scripts/compter_stations_citiz.py   # compte stations et véhicules des réseaux Citiz (D1)
 python scripts/run_all.py                  # rejoue la chaîne bronze -> silver -> gold
+python scripts/run_all.py --territoire france  # France métropolitaine -> data/france/ (docs/donnees_france.md)
 python geo/download_contours_ign.py        # Rôle 2 seul : contours IGN (WFS) -> data/silver/contours.parquet
 python model/build_carreaux.py --help      # Rôle 3 seul : carreaux_socio (INSEE, téléchargé dans data/bronze/insee/)
 python optim/build_offre_partagee.py       # Rôle 4 seul : stations partagées (idem build_projections, build_couts)

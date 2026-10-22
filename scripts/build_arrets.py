@@ -2,6 +2,7 @@ import argparse
 import hashlib
 import re
 import shutil
+import sys
 import time
 import unicodedata
 import zipfile
@@ -18,7 +19,9 @@ from shapely import covers, prepare as prepare_geometry, union_all
 
 ROOT = Path(__file__).resolve().parent.parent
 BRONZE = ROOT / "data" / "bronze" / "gtfs"
-SILVER = ROOT / "data" / "silver"
+sys.path.insert(0, str(ROOT / "optim"))
+import territoire as T  # noqa: E402  (territoire : TERRITOIRE=ara|france)
+SILVER = T.SILVER
 
 # Territoire : Auvergne-Rhône-Alpes (grande ville : Lyon) - choix d'équipe du 19/10
 # nom du réseau -> identifiant du jeu de données sur data.gouv.fr
@@ -51,6 +54,14 @@ NETWORKS = {
 }
 
 CRS_LAMBERT93 = 2154
+
+# Hors ARA, les réseaux sont lus dans le catalogue national (jeux « public-transit » avec un GTFS dont la
+# zone touche le territoire). Les jeux de portée nationale (SNCF, cars longue distance, aérien) sont
+# écartés par défaut, comme dans la liste ARA ; --avec-nationaux les ajoute.
+TDG_API = "https://transport.data.gouv.fr/api/datasets"
+# Jeux écartés du catalogue : les agrégats régionaux republient des réseaux déjà collectés un par un
+# (fréquences comptées deux fois), les programmes de vols ne sont pas une offre de proximité.
+EXCLUDED_TITLES = re.compile(r"^(agr[ée]gat\b|programme des vols)", re.I)
 
 # Sources qui ne se téléchargent plus automatiquement : on indique comment les obtenir.
 MANUAL_SOURCES = {
@@ -138,7 +149,10 @@ def resolve_gtfs_urls(slug):
         url = r.get("url") or ""
         if r.get("type") == "documentation" or fmt in ("pdf", "csv", "json", "gtfs-rt", "netex"):
             continue
-        if any(w in f"{text} {url.lower()}" for w in EXCLUDED_WORDS):
+        # Hors ARA, un fichier déclaré zip/GTFS n'est écarté que si son titre annonce du NeTEx : sa
+        # description cite souvent le GTFS-RT du même jeu (Fil Bleu, Tango, Ametis). ARA : règle d'origine.
+        static = T.NOM != "ara" and fmt in ("gtfs", "zip") and "netex" not in title.lower()
+        if not static and any(w in f"{text} {url.lower()}" for w in EXCLUDED_WORDS):
             continue  # temps réel, NeTEx...
         if not (fmt in ("gtfs", "zip") or "gtfs" in text):  # certains réseaux déclarent "zip" ou "octet-stream"
             continue
@@ -191,6 +205,71 @@ def download_network(name, slug, refresh=False):
             print(f"[{name}] fichier {i}/{len(resources)} : {title}")
         out.append((label, download_one(label, url, refresh)))
     return out
+
+
+def network_name(slug):
+    """Nom court d'un réseau : celui de la liste ARA s'il y figure (GTFS déjà en cache), sinon le slug."""
+    known = {v: k for k, v in NETWORKS.items()}
+    return known.get(slug) or re.sub(r"[^a-z0-9]+", "_", slug.lower()).strip("_")[:60]
+
+
+def discover_networks(codes, with_national=False):
+    """Réseaux GTFS du catalogue transport.data.gouv.fr qui touchent le territoire : {nom: id data.gouv}.
+    codes : codes INSEE du territoire par niveau (territoire.area_codes)."""
+    def fetch():
+        r = requests.get(TDG_API, timeout=120)
+        r.raise_for_status()
+        return r.json()
+    datasets = with_retries(fetch, "catalogue")
+    found, excluded = {}, []
+    for d in datasets:
+        if d.get("type") != "public-transit" or not d.get("datagouv_id"):
+            continue
+        if EXCLUDED_TITLES.match(d.get("title") or ""):
+            excluded.append(d["title"])
+            continue
+        if not any((r.get("format") or "").upper() == "GTFS" for r in d.get("resources", [])):
+            continue
+        area = d.get("covered_area") or []
+        if not with_national and any(a.get("type") == "pays" for a in area):
+            continue
+        if area and T.covers(area, codes):
+            found[network_name(d.get("slug") or d["datagouv_id"])] = d["datagouv_id"]
+    if not found:
+        raise RuntimeError("Aucun réseau GTFS trouvé dans le catalogue pour ce territoire")
+    for title in sorted(excluded):
+        print(f"[catalogue] écarté (agrégat ou vols) : {title}")
+    return dict(sorted(found.items()))
+
+
+def territory_codes(contours_path):
+    """Codes INSEE du territoire par niveau, lus dans la table contours (régions : territoire.CODES)."""
+    codes = T.area_codes(T.load_communes(contours_path))
+    if T.NIVEAU == "region":
+        codes["region"] = set(T.CODES)
+    return codes
+
+
+def has_stops(zip_path):
+    """Vrai si l'archive contient un stops.txt (sinon : NeTEx ou autre format livré en zip)."""
+    try:
+        with zipfile.ZipFile(zip_path) as zf:
+            return any(m.lower().endswith("stops.txt") for m in zf.namelist())
+    except zipfile.BadZipFile:
+        return False
+
+
+def collapse_network_files(stops):
+    """Un réseau publié en plusieurs fichiers qui se recouvrent (ex. GTFS complet et GTFS du SAE) :
+    un même arrêt (même identifiant, mêmes coordonnées) n'est compté qu'une fois, avec la fréquence
+    la plus élevée, au lieu de la somme des fichiers."""
+    cols = ["reseau", "stop_id", "_lat", "_lon"]
+    stops = stops.assign(_lat=stops.lat.round(5), _lon=stops.lon.round(5))
+    stops["nb_passages_jour"] = stops.groupby(cols).nb_passages_jour.transform("max")
+    out = stops.drop_duplicates(cols).drop(columns=["_lat", "_lon"])
+    if len(out) < len(stops):
+        print(f"Arrêts présents dans plusieurs fichiers d'un même réseau, comptés une fois : {len(stops) - len(out)}")
+    return out.reset_index(drop=True)
 
 
 # ---------------------------------------------------------------- lecture GTFS
@@ -445,7 +524,7 @@ def publish_stops(final, report):
             raise
 
 
-def quality_report(final, n_brut, n_hors_territoire, contours_used, service_dates, echecs=()):
+def quality_report(final, n_brut, n_hors_territoire, contours_used, service_dates, echecs=(), non_gtfs=()):
     lines = ["Rapport qualité - table arrets", "=" * 40,
              f"Arrêts bruts (tous réseaux)        : {n_brut}",
              f"Arrêts après dédoublonnage         : {len(final) + n_hors_territoire}",
@@ -459,6 +538,7 @@ def quality_report(final, n_brut, n_hors_territoire, contours_used, service_date
     lines.append(f"Arrêts à 0 passage                  : {(final.nb_passages_jour == 0).sum()}")
     lines.append(f"Jours de référence                  : {service_dates}")
     lines.append("Réseaux en échec (ignorés)          : " + (", ".join(echecs) if echecs else "aucun"))
+    lines.append("Fichiers non GTFS ignorés (NeTEx)   : " + (", ".join(non_gtfs) if non_gtfs else "aucun"))
     lines.append("\nPar mode :\n" + final["mode"].value_counts().to_string())
     lines.append("\nPar réseau :\n" + final.reseau.value_counts().to_string())
     return "\n".join(lines)
@@ -474,6 +554,11 @@ def main(argv=None):
     ap.add_argument("--gtfs", action="append", default=[], metavar="NOM=CHEMIN.zip",
                     help="utiliser un GTFS local au lieu du téléchargement (répétable)")
     ap.add_argument("--refresh", action="store_true", help="re-télécharger les GTFS")
+    ap.add_argument("--avec-nationaux", action="store_true",
+                    help="hors ARA : garder aussi les jeux de portée nationale (SNCF, cars longue distance)")
+    ap.add_argument("--tolerer-echecs", action="store_true",
+                    help="hors ARA : publier malgré des réseaux en échec, listés dans le rapport qualité "
+                         "(les réseaux à récupérer à la main restent obligatoires)")
     args = ap.parse_args(argv)
 
     boundary = load_boundary(args.contours)
@@ -485,7 +570,9 @@ def main(argv=None):
             n, p = kv.split("=", 1)
             sources.append((n, n, Path(p)))
     else:
-        for n, slug in NETWORKS.items():
+        networks = NETWORKS if T.NOM == "ara" else discover_networks(territory_codes(args.contours), args.avec_nationaux)
+        print(f"Territoire {T.LIBELLE} : {len(networks)} réseau(x) GTFS")
+        for n, slug in networks.items():
             try:
                 sources += [(n, label, path) for label, path in download_network(n, slug, args.refresh)]
             except Exception as exc:
@@ -493,11 +580,16 @@ def main(argv=None):
                 print(f"[{n}] ÉCHEC : {str(exc)[:150]}")
                 if n in MANUAL_SOURCES:
                     print(f"[{n}] À FAIRE : {MANUAL_SOURCES[n]}")
-    if echecs:
+    tolerated = args.tolerer_echecs and T.NOM != "ara"
+    if echecs and (not tolerated or any(n in MANUAL_SOURCES for n in echecs)):
         raise RuntimeError(f"Collecte incomplète : {', '.join(echecs)}. Fichiers silver conservés.")
 
-    frames = []
+    frames, non_gtfs = [], []
     for reseau, label, p in sources:
+        if any(r == reseau and q != p for r, _, q in sources) and not has_stops(p):
+            non_gtfs.append(label)  # NeTEx ou autre format livré en zip, le réseau a un autre fichier
+            print(f"[{label}] pas un GTFS (aucun stops.txt) : fichier ignoré")
+            continue
         try:
             frame = stops_from_gtfs(reseau, p, wanted, label)
             if frame.empty:
@@ -506,11 +598,13 @@ def main(argv=None):
         except Exception as exc:
             echecs.append(label)
             print(f"[{label}] ÉCHEC : {str(exc)[:150]}")
-    if echecs:
+    if echecs and (not tolerated or any(n in MANUAL_SOURCES for n in echecs)):
         raise RuntimeError(f"Lecture GTFS incomplète : {', '.join(echecs)}. Fichiers silver conservés.")
     if not frames:
         raise RuntimeError("Aucune source GTFS exploitable. Fichiers silver conservés.")
     allstops = pd.concat(frames, ignore_index=True)
+    if T.NOM != "ara":
+        allstops = collapse_network_files(allstops)
     allstops["nb_passages_jour"] = pd.to_numeric(allstops.nb_passages_jour, errors="raise")
     if not np.isfinite(allstops.nb_passages_jour).all() or allstops.nb_passages_jour.lt(0).any():
         raise ValueError("Fréquences source absentes, non finies ou négatives")
@@ -542,7 +636,7 @@ def main(argv=None):
     validate_stops(final, boundary)
 
     report = quality_report(final, n_brut, n_hors, bool(args.contours),
-                            wanted or "automatique (mardi le plus chargé)")
+                            wanted or "automatique (mardi le plus chargé)", echecs, non_gtfs)
     publish_stops(final, report)
     print(report)
     print(f"\nÉcrit : {SILVER / 'arrets.parquet'}")
