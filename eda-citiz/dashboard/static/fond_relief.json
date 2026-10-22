@@ -1,0 +1,1 @@
+{"version": 8, "sources": {"esri": {"type": "raster", "tileSize": 256, "maxzoom": 17, "attribution": "Fond \u00a9 Esri, OpenStreetMap", "tiles": ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"]}}, "layers": [{"id": "esri", "type": "raster", "source": "esri"}]}
