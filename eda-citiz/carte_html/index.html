@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Citiz · Carte d'accès aux transports</title>
+<link rel="stylesheet" href="./leaflet.css">
+<style>
+  :root { --fond:#0d1517; --panneau:#16222a; --panneau2:#1c2b34; --texte:#e9f1f1; --gris:#8fa3a8; --teal:#4DC3B8; --teal-clair:#7fe0d6; --gris-citiz:#575556; --epitech:#1F3BFF; --bord:#27373f; }
+  * { box-sizing: border-box; }
+  html, body { height:100%; }
+  body { margin:0; font-family: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", sans-serif; color:var(--texte); display:flex; flex-direction:column;
+         background: radial-gradient(900px 420px at 90% -8%, rgba(77,195,184,.20), transparent 65%), radial-gradient(800px 500px at -5% 105%, rgba(31,59,255,.14), transparent 60%), var(--fond); background-attachment:fixed; }
+  header { padding:14px 32px; display:flex; flex-wrap:wrap; gap:12px 28px; align-items:center; position:relative; }
+  header::after { content:""; position:absolute; left:32px; right:32px; bottom:0; height:1px; background:linear-gradient(90deg,var(--teal),rgba(77,195,184,0)); }
+  .pastille { background:#fff; border-radius:16px; padding:8px 16px; display:flex; align-items:center; box-shadow:0 4px 18px rgba(0,0,0,.35); }
+  .logo-citiz { height:38px; width:auto; display:block; }
+  .logo-epitech { height:62px; width:62px; display:block; border-radius:14px; box-shadow:0 4px 18px rgba(31,59,255,.45); }
+  .titre-bloc { flex:1; min-width:260px; }
+  h1 { font-size:25px; margin:0 0 3px; font-weight:800; letter-spacing:-.015em; }
+  h1 em { font-style:normal; color:var(--teal); }
+  .sous { color:var(--gris); font-size:13.5px; }
+  .choix { display:flex; gap:10px; flex-wrap:wrap; }
+  select { font:inherit; font-weight:600; padding:10px 18px; border:1.5px solid var(--teal); border-radius:999px; background:var(--panneau); color:var(--texte); min-width:190px; outline:none; cursor:pointer; }
+  select:focus { box-shadow:0 0 0 3px rgba(77,195,184,.3); }
+  select:disabled { opacity:.45; cursor:default; }
+  .partenaires { display:flex; align-items:center; }
+  #note { padding:0 32px 10px; color:var(--gris); font-size:12px; }
+  #zone { padding:14px 32px 8px; font-weight:700; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--teal-clair); }
+  .kpis { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; padding:0 32px 16px; }
+  .kpi { background:linear-gradient(160deg,var(--panneau2),var(--panneau)); border:1px solid var(--bord); border-radius:18px; padding:14px 18px; box-shadow:0 8px 24px rgba(0,0,0,.28); }
+  .kpi b { display:block; font-size:30px; font-weight:800; line-height:1.15; color:var(--teal-clair); letter-spacing:-.015em; }
+  .kpi span { color:var(--gris); font-size:13px; font-weight:500; }
+  #carte { flex:1; min-height:480px; margin:0 32px 14px; border-radius:22px; overflow:hidden; border:1px solid var(--bord); box-shadow:0 14px 40px rgba(0,0,0,.45); }
+  .leaflet-container { background:#c9dbe8; font:inherit; }
+  .boite { background:rgba(22,34,42,.94); color:var(--texte); border:1px solid var(--bord); border-radius:14px; box-shadow:0 6px 20px rgba(0,0,0,.4); padding:10px 14px; }
+  .couches { font-size:13px; line-height:1.9; }
+  .couches summary { color:var(--teal-clair); cursor:pointer; font-weight:600; }
+  .couches label { display:flex; align-items:center; gap:7px; cursor:pointer; white-space:nowrap; }
+  .couches input { accent-color:var(--teal); }
+  .pt { display:inline-block; width:10px; height:10px; border-radius:50%; border:1px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,.25); }
+  #info { position:absolute; pointer-events:none; background:rgba(13,21,23,.95); color:#fff; padding:5px 9px; border-radius:6px; font-size:12px; display:none; z-index:2000; white-space:nowrap; border:1px solid var(--bord); }
+  .num { background:var(--gris-citiz); color:#fff; border:2px solid #fff; border-radius:50%; width:22px; height:22px; font:700 11px/18px system-ui; text-align:center; box-shadow:0 0 3px rgba(0,0,0,.5); }
+  .btn-ou { font:inherit; font-weight:700; padding:10px 22px; border:0; border-radius:999px; background:linear-gradient(135deg,var(--teal),#2fa89d); color:#06201d; cursor:pointer; box-shadow:0 6px 18px rgba(77,195,184,.35); }
+  .btn-ou:hover { filter:brightness(1.08); } .btn-ou.retour { background:var(--panneau); color:var(--teal-clair); border:1.5px solid var(--teal); box-shadow:none; }
+  #budget { display:none; padding:0 32px 12px; align-items:center; gap:18px; color:var(--gris); font-size:13px; flex-wrap:wrap; }
+  #budget b { color:var(--teal-clair); font-size:18px; min-width:110px; display:inline-block; } #budget input { flex:1; min-width:220px; accent-color:var(--teal); }
+  .lg { display:flex; gap:14px; align-items:center; } .lg i { display:inline-block; width:11px; height:11px; border-radius:50%; margin-right:5px; border:1px solid #fff; }
+  .nb { color:#fff; border:2px solid #fff; border-radius:50%; font:700 11px/20px system-ui; text-align:center; box-shadow:0 0 4px rgba(0,0,0,.6); }
+  .fiche b { color:#0b6f66; } .fiche { font-size:13px; line-height:1.55; }
+  footer { padding:0 32px 14px; color:var(--gris); font-size:12px; }
+  .leaflet-control-attribution { background:rgba(255,255,255,.75) !important; }
+  @media (max-width:900px){ .kpis{grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+<header>
+  <div class="pastille"><img class="logo-citiz" src="logo_citiz.png" alt="Citiz"></div>
+  <div class="titre-bloc"><h1>Carte d'accès aux <em>transports</em></h1><div class="sous">Solutions de transport à 5 minutes à pied · France métropolitaine</div></div>
+  <div class="choix">
+    <select id="cat" aria-label="Catégorie"></select>
+    <select id="ville" aria-label="Ville"></select>
+  </div>
+  <button class="btn-ou" id="btnOu">Où ouvrir ?</button>
+  <div class="partenaires"><img class="logo-epitech" src="logo_epitech.jpg" alt="Epitech Marseille"></div>
+</header>
+<div id="zone"></div>
+<div class="kpis" id="kpis"></div>
+<div id="note"></div>
+<div id="budget"><span>Budget annuel</span><b id="bv"></b><input type="range" id="br" min="10000" max="500000" step="5000" value="500000"><span class="lg" id="lgOu"></span></div>
+<div id="carte"></div>
+<div id="info"></div>
+<footer><span>Données : Filosofi 2021 (INSEE), aires d'attraction 2020, arrêts de transport, relevés des réseaux Citiz</span></footer>
+<script src="./leaflet.js"></script>
+<script src="donnees.js"></script>
+<script src="portefeuille.js"></script>
+<script>
+let _t, _touche = false, modeOu = false;
+const CATEGORIES = ["Métropole","Grande ville","Ville moyenne","Zone rurale"];
+const DEFS = {"Métropole":"aire de 1 million d'habitants et plus","Grande ville":"aire de 250 000 à 1 million","Ville moyenne":"aire de 50 000 à 250 000","Zone rurale":"moins de 50 000 habitants ou hors aire"};
+const TYPES = {b:["Bus et cars","#4664a0"], t:["Tramway","#c82828"], m:["Métro","#8c1e78"], g:["Gare","#141478"], v:["Vélos en libre-service","#1ea05a"], a:["Autopartage","#a06e28"], c:["Câble et bateau","#5a5a5a"]};
+const esp = n => Math.round(n).toLocaleString("fr-FR").replace(/ /g," ");
+const pct = x => Math.round(x*100) + " %";
+
+// ---- Échelle de chaleur (la même que celle des images) ----
+const RT=[0,.1,.2,.3,.4,.55,.7,.85,1], RC=[[35,45,205],[75,105,235],[115,190,230],[110,200,165],[115,190,100],[200,215,80],[245,215,60],[240,140,50],[215,45,35]];
+const stops = RT.map((t,i)=>`rgb(${RC[i].join(",")}) ${t*100}%`).join(",");
+const REPERES = [[0,"0"],[20,"0,25"],[40,"0,5"],[70,"1"],[100,"3 et +"]];
+
+// ---- Carte ----
+const carte = L.map("carte", {zoomAnimation:false, zoomSnap:0.25, minZoom:4, maxZoom:17, preferCanvas:true}).setView([46.6,2.6],5.75);
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", {maxZoom:17, maxNativeZoom:16, attribution:"Fond © Esri, OpenStreetMap"}).addTo(carte);
+
+// Surcouches de chaleur : France entière en vue large, régions (plus fines) dès que l'on zoome
+const KC = ["M","G","V","R"];
+const bnd = k => [[SURCOUCHES[k][0],SURCOUCHES[k][1]],[SURCOUCHES[k][2],SURCOUCHES[k][3]]];
+const regs = Object.keys(SURCOUCHES).filter(k=>k!=="france" && !k.includes("_"));
+const mk = suf => ({france: L.imageOverlay("france"+suf+".webp", bnd("france"+suf), {opacity:1, interactive:false, zIndex:300}),
+  regions: regs.filter(r=>SURCOUCHES[r+suf]).map(r=>L.imageOverlay(r+suf+".webp", bnd(r+suf), {opacity:1, interactive:false}))});
+const JEUX = {"":mk("")}; KC.forEach(k=>JEUX["_"+k]=mk("_"+k));
+let detail = null, jeu = "", catIdx = -1;
+function majSurcouches(force){
+  const d = carte.getZoom() >= 7;
+  if (!force && d === detail) return; detail = d;
+  Object.values(JEUX).forEach(J=>{ carte.removeLayer(J.france); J.regions.forEach(l=>carte.removeLayer(l)); });
+  const J = JEUX[jeu]; if (d) J.regions.forEach(l=>l.addTo(carte)); else J.france.addTo(carte);
+}
+
+// Arrêts et stations (taille = habitants desservis) : dessin sur canvas, filtré selon le zoom
+const cv = document.createElement("canvas"); cv.style.cssText="position:absolute;left:0;top:0;pointer-events:none";
+carte.getPane("overlayPane").insertBefore(cv, carte.getPane("overlayPane").firstChild);
+const actifs = Object.fromEntries(Object.keys(TYPES).map(k=>[k,true])); let dessines = [];
+const seuil = z => z<=5.5?9000 : z<=6.5?5000 : z<=7.5?2500 : z<=8.5?1200 : z<=9.5?500 : z<=10.5?200 : z<=11.5?60 : 0;
+function dessiner(){
+  const t = carte.getSize(), dpr = window.devicePixelRatio||1; cv.width=t.x*dpr; cv.height=t.y*dpr; cv.style.width=t.x+"px"; cv.style.height=t.y+"px";
+  L.DomUtil.setPosition(cv, carte.containerPointToLayerPoint([0,0]));
+  const g = cv.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,t.x,t.y); dessines=[];
+  if (modeOu || !document.getElementById("c_arrets").checked) return;
+  const z = carte.getZoom(), s = seuil(z), b = carte.getBounds().pad(0.05);
+  const lo0=b.getWest()*1e4, lo1=b.getEast()*1e4, la0=b.getSouth()*1e4, la1=b.getNorth()*1e4;
+  for (const k of "btmgvac") {
+    if (!actifs[k]) continue; const A = ARRETS[k], seu = k==="b" ? s : s*0.35; g.fillStyle = TYPES[k][1] + "d9";
+    for (let i=0;i<A.length;i+=4){
+      const p = A[i+2]; if (p < seu) continue; if (catIdx>=0 && A[i+3]!==catIdx) continue; const x=A[i], y=A[i+1]; if (x<lo0||x>lo1||y<la0||y>la1) continue;
+      const q = carte.latLngToContainerPoint([y/1e4, x/1e4]); const r = Math.min(13, 1.8 + Math.sqrt(p)/18*(z>=10?1.3:1));
+      g.beginPath(); g.arc(q.x,q.y,r,0,6.2832); g.fill(); g.lineWidth=0.6; g.strokeStyle="#fff"; g.stroke(); dessines.push([q.x,q.y,r,k,p]);
+    }
+  }
+}
+const info = document.getElementById("info");
+carte.getContainer().addEventListener("mousemove", e=>{
+  const r = carte.getContainer().getBoundingClientRect(), x=e.clientX-r.left, y=e.clientY-r.top; let m=null, dm=1e9;
+  for (const d of dessines){ const dd=(d[0]-x)**2+(d[1]-y)**2; if (dd < Math.max(36,d[2]*d[2]) && dd<dm){dm=dd;m=d;} }
+  if (m){ info.style.display="block"; info.style.left=(e.clientX+12)+"px"; info.style.top=(e.clientY+12)+"px"; info.innerHTML=`<b>${TYPES[m[3]][0]}</b> · ${esp(m[4])} habitants à 5 min`; }
+  else info.style.display="none";
+});
+
+// Stations Citiz (virtuelles, annoncées) et candidats
+const grpStations = L.layerGroup().addTo(carte), grpCand = L.layerGroup().addTo(carte);
+const marqS = [];
+STATIONS.forEach(s=>{
+  const [lon,lat,nom,com,virt,veh,venir]=s; const c = venir ? ["#ff7f0e","#fff",6] : virt ? ["#9467bd","#fff",6.5] : ["#fff","#222",4.5];
+  const m = L.circleMarker([lat,lon],{radius:c[2],fillColor:c[0],fillOpacity:1,color:c[1],weight:venir||virt?2:1.2}).bindPopup(`<b>${nom}</b><br>${com}<br>${venir?"Ouverture prochaine":virt?"Station virtuelle":"Station Citiz"}${veh?` · ${veh} véhicule${veh>1?"s":""}`:""}`); marqS.push(m);
+});
+let zoneCourante = "France";
+function majCandidats(){
+  grpCand.clearLayers(); if (modeOu || !document.getElementById("c_cand").checked) return;
+  const z = carte.getZoom(), zn = ZONES[zoneCourante];
+  CANDIDATS.forEach(c=>{
+    const [lon,lat,aire,com,rang,gain]=c; const a = ZONES[aire];
+    const dans = zoneCourante==="France" || zoneCourante===aire || zoneCourante===(a&&a.cat);
+    if (!dans || z<7.5 || (catIdx>=0 && !(a && a.cat===CATEGORIES[catIdx]))) return;
+    L.marker([lat,lon],{icon:L.divIcon({className:"",html:`<div class="num">${rang}</div>`,iconSize:[22,22]})}).bindPopup(`<b>Candidat n°${rang} · ${aire}</b><br>${com}<br>${esp(gain)} habitants gagnés à 5 min à pied`).addTo(grpCand);
+  });
+}
+function majStations(){ const sel=document.getElementById("c_stations").checked; grpStations.clearLayers();
+  if (sel && !modeOu) STATIONS.forEach((s,i)=>{ if (catIdx<0 || s[7]===catIdx) grpStations.addLayer(marqS[i]); }); }
+
+// ---- Panneau de couches ----
+const ctrl = L.control({position:"topright"});
+ctrl.onAdd = ()=>{ const d=L.DomUtil.create("div","boite couches");
+  d.innerHTML = `<details><summary style="cursor:pointer;font-weight:600">Couches</summary><label><input type="checkbox" id="c_stations" checked> Stations Citiz <span class="pt" style="background:#fff"></span><span class="pt" style="background:#9467bd"></span><span class="pt" style="background:#ff7f0e"></span></label>
+  <label><input type="checkbox" id="c_cand" checked> Candidats (5 par aire, dès le zoom ville)</label>
+  <label><input type="checkbox" id="c_arrets" checked> Arrêts et stations</label>` + Object.entries(TYPES).map(([k,[n,c]])=>`<label style="margin-left:18px"><input type="checkbox" data-t="${k}" checked><span class="pt" style="background:${c}"></span>${n}</label>`).join("") +
+  `<div style="color:#6b6b6b;font-size:11.5px;margin-top:4px">taille des points = habitants desservis · ○ station · violet : virtuelle · orange : annoncée</div></details>`;
+  L.DomEvent.disableClickPropagation(d); return d; };
+ctrl.addTo(carte);
+document.getElementById("c_stations").onchange = majStations; document.getElementById("c_cand").onchange = majCandidats; document.getElementById("c_arrets").onchange = dessiner;
+document.querySelectorAll("[data-t]").forEach(i=>i.onchange=()=>{actifs[i.dataset.t]=i.checked; dessiner();});
+
+// ---- Zone choisie : chiffres clés ----
+const selCat = document.getElementById("cat"), selVille = document.getElementById("ville");
+selCat.innerHTML = ["Toute la France",...CATEGORIES].map(c=>`<option>${c}</option>`).join("");
+function remplirVilles(){
+  const c = selCat.value;
+  if (c==="Toute la France"){ selVille.innerHTML="<option>—</option>"; selVille.disabled=true; return; }
+  const v = Object.keys(ZONES).filter(k=>ZONES[k].cat===c).sort((a,b)=>ZONES[b].pop-ZONES[a].pop);
+  selVille.innerHTML = `<option value="">Toutes les villes de cette catégorie</option>` + v.map(k=>`<option>${k}</option>`).join(""); selVille.disabled = !v.length;
+}
+function afficherZone(){
+  const c = selCat.value, v = selVille.value;
+  zoneCourante = c==="Toute la France" ? "France" : (v || c); const z = ZONES[zoneCourante], k = z.k;
+  document.getElementById("zone").textContent = (zoneCourante==="France" ? "France métropolitaine" : zoneCourante) + (DEFS[zoneCourante] ? " · " + DEFS[zoneCourante] : "");
+  const t = [[esp(k.hab),"Habitants (Filosofi 2021)"],[pct(k.sans),"Sans aucune option à 5 min"],[pct(k.citiz),"Station Citiz à 5 min"],[pct(k.sv),"Ménages sans voiture"],[esp(k.st),"Stations Citiz"]];
+  document.getElementById("kpis").innerHTML = t.map(([a,b])=>`<div class="kpi"><b>${a}</b><span>${b}</span></div>`).join("");
+  document.getElementById("note").textContent = `Pourcentages calculés sur ${pct(k.hab_calc/k.hab)} de la population (carreaux de 200 m d'au moins 11 habitants).`;
+  catIdx = c==="Toute la France" ? -1 : CATEGORIES.indexOf(c); jeu = catIdx<0 ? "" : "_"+KC[catIdx]; majSurcouches(true); majStations(); dessiner();
+  _touche = false; const bb = z.bbox; carte.fitBounds([[bb[0],bb[1]],[bb[2],bb[3]]], {animate:false, padding:[10,10]}); majCandidats();
+}
+selCat.onchange = ()=>{ remplirVilles(); afficherZone(); }; selVille.onchange = afficherZone;
+carte.on("zoomend moveend", ()=>{ majSurcouches(); dessiner(); }); carte.on("zoomend", majCandidats);
+remplirVilles(); afficherZone(); majSurcouches(); dessiner();
+
+// ---- Où ouvrir ? : portefeuille priorisé sous budget (modèle de potentiel + optimisation, Auvergne-Rhône-Alpes) ----
+const TOU = {citiz:["Station Citiz","#00a99d"], bus:["Arrêt de bus","#4664a0"], velo:["Station vélo","#1ea05a"]};
+const grpOu = L.layerGroup().addTo(carte), el = id => document.getElementById(id), btn = el("btnOu"), br = el("br");
+el("lgOu").innerHTML = Object.values(TOU).map(([n,c])=>`<span><i style="background:${c}"></i>${n}</span>`).join("");
+const eur = n => esp(n) + " €";
+function majOu(){
+  const z = carte.getZoom(), B = +br.value, sel = PORTEFEUILLE.filter(r=>r[11] <= B); el("bv").textContent = eur(B); grpOu.clearLayers();
+  sel.forEach(r=>{
+    const [rang,type,com,hab,cout,loc,marge,veh,co2,lon,lat,,,est] = r, [nom,col] = TOU[type];
+    const f = `<div class="fiche"><b>N° ${rang} · ${nom}</b> · ${com}<br>${esp(hab)} habitants gagnés à 5 min à pied${est?" (estimé)":""}<br>Coût : ${eur(cout)} / an`+
+      (type==="citiz" ? `<br>Usage attendu : ${String(loc).replace(".",",")} location / jour<br>Marge : ${marge>=0?"+":"−"}${eur(Math.abs(marge))} / an<br>${veh}` : "") + `</div>`;
+    L.marker([lat,lon],{icon:L.divIcon({className:"",html:z>=10 ? `<div class="nb" style="background:${col};width:24px;height:24px;line-height:20px">${rang}</div>` : `<div class="nb" style="background:${col};width:13px;height:13px;border-width:1.5px"></div>`,iconSize:z>=10?[24,24]:[13,13]})}).bindPopup(f).addTo(grpOu);
+  });
+  const last = sel[sel.length-1], citiz = sel.filter(r=>r[1]==="citiz");
+  const t = [[sel.length,"Équipements à ouvrir"],[last?esp(last[12]):0,"Habitants nouvellement desservis"],[last?eur(last[11]):"0 €","Budget annuel utilisé"],
+    [eur(citiz.reduce((a,r)=>a+(r[6]||0),0)),"Marge annuelle des stations Citiz"],[esp(citiz.reduce((a,r)=>a+(r[8]||0),0))+" t","CO₂ évité par an"]];
+  el("kpis").innerHTML = t.map(([a,b])=>`<div class="kpi"><b>${a}</b><span>${b}</span></div>`).join("");
+}
+function opacite(o){ Object.values(JEUX).forEach(J=>{ J.france.setOpacity(o); J.regions.forEach(l=>l.setOpacity(o)); }); }
+function basculer(){
+  modeOu = !modeOu; document.body.classList.toggle("mode-ou", modeOu);
+  btn.textContent = modeOu ? "← Carte d'accès" : "Où ouvrir ?"; btn.classList.toggle("retour", modeOu);
+  el("cat").style.display = el("ville").style.display = modeOu ? "none" : ""; el("budget").style.display = modeOu ? "flex" : "none";
+  if (modeOu){
+    el("zone").textContent = "Où ouvrir · Auvergne-Rhône-Alpes · classement par habitants gagnés par euro";
+    el("note").textContent = "Potentiel estimé à partir des données annuelles moyennes de Citiz (≈ 0,5 location par jour et par véhicule), modulé par un modèle de potentiel. Chaque habitant est compté une fois par type d'équipement.";
+    opacite(0.3); majStations(); majCandidats(); dessiner(); majOu(); _touche = true;
+    carte.fitBounds([[44.9,4.0],[46.3,6.4]], {animate:false, padding:[10,10]});
+  } else { grpOu.clearLayers(); opacite(1); afficherZone(); }
+}
+carte.on("zoomend", ()=>{ if (modeOu) majOu(); });
+btn.onclick = basculer; br.oninput = majOu;
+function recadrer(){ carte.invalidateSize(); afficherZone(); }
+['mousedown','wheel','touchstart'].forEach(ev=>carte.getContainer().addEventListener(ev, ()=>{ _touche = true; }, {passive:true}));
+function recadrerSiBesoin(){ clearTimeout(_t); _t = setTimeout(()=>{ carte.invalidateSize(); if (!_touche) afficherZone(); }, 120); }
+window.addEventListener('load', recadrerSiBesoin); window.addEventListener('resize', recadrerSiBesoin);
+if (window.ResizeObserver) new ResizeObserver(recadrerSiBesoin).observe(document.getElementById('carte'));
+</script>
+</body>
+</html>
