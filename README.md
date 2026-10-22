@@ -23,7 +23,7 @@ Outil d'aide à la décision : où implanter de nouvelles stations d'autopartage
 | 2. Géomatique | | `reseau_pieton`, `contours`, `gold_isochrones`, `gold_o1`, `gold_o2`, `gold_couverture` |
 | 3. Data scientist | | `carreaux_socio`, `gold_features`, `gold_scores`, tableau d'évaluation |
 | 4. Optimisation et coûts | | `stations_partagees`, `projections`, `couts`, liste priorisée |
-| 5. Restitution et pilotage | | `ratios_co2`, application Streamlit (`eda-citiz/dashboard/`), slides, démo de secours |
+| 5. Restitution et pilotage | | `ratios_co2`, carte HTML (`eda-citiz/carte_html/`), slides, démo de secours |
 
 ## Structure du dépôt
 
@@ -80,13 +80,28 @@ TERRITOIRE=france python scripts/controle_qualite.py    # France (PowerShell : $
 
 Résultat attendu : `TOUT EST OK (0 problème(s))`. Rapports : `data/gold/controle_qualite.txt` (ARA) et `data/france/gold/controle_qualite.txt` (France).
 
-### 4. Application Streamlit (carte d'accès)
+### 4. Carte d'accès (site HTML)
+
+La carte de restitution est un site HTML autonome, versionné dans `eda-citiz/carte_html/` : aucun serveur ni installation supplémentaire, il suffit d'ouvrir le fichier dans un navigateur.
 
 ```bash
-python -m streamlit run eda-citiz/dashboard/app.py --server.enableStaticServing true
+# Windows (PowerShell)
+start eda-citiz\carte_html\index.html
 ```
 
-À lancer depuis la racine du dépôt. L'option `--server.enableStaticServing true` affiche la chaleur en dégradé continu (sans elle, la carte se replie sur de petites cellules). L'appli lit les CSV de `eda-citiz/donnees/` (`acces_france_<région>.csv`, `offre_france.csv`, `couverture_pieton_*.csv`…), produits par les scripts de `eda-citiz/dashboard/` : voir `eda-citiz/dashboard/LISEZMOI.md`.
+Si le navigateur n'affiche pas les couches de chaleur (chargement bloqué en ouverture directe), servir le dossier en local puis ouvrir http://localhost:8000 :
+
+```bash
+python -m http.server 8000 --directory eda-citiz/carte_html
+```
+
+Pour régénérer le site à partir des CSV d'accès (`acces_france_<région>.csv`, `offre_france.csv`, `couverture_pieton_*.csv`… dans `eda-citiz/donnees/`) :
+
+```bash
+python eda-citiz/dashboard/build_html.py eda-citiz/donnees eda-citiz/carte_html
+```
+
+Les CSV sont produits par les scripts de `eda-citiz/dashboard/` (`calc_france.py`, `decouper_france.py`, `enrichir_france.py`) : voir `eda-citiz/dashboard/LISEZMOI.md`. L'ancienne appli Streamlit (`app.py`, `app_region.py`, `app_grenoble.py`) n'est plus utilisée pour la soutenance.
 
 ## Exécution avec Docker
 
