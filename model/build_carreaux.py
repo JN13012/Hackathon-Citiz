@@ -45,20 +45,23 @@ except ImportError:
     ssl._create_default_https_context = lambda: ssl.create_default_context(cafile=certifi.where())
 
 RACINE = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(RACINE / "optim"))
+import territoire as T  # noqa: E402  (territoire : TERRITOIRE=ara|france)
 AURA = ("01", "03", "07", "15", "26", "38", "42", "43", "63", "69", "73", "74")
 
 
 def arguments(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--departements", default=",".join(AURA),
-                   help="codes départements du territoire, séparés par des virgules (défaut : Auvergne-Rhône-Alpes)")
+    p.add_argument("--departements", default=",".join(T.DEPARTEMENTS or AURA),
+                   help="codes départements du territoire, séparés par des virgules (défaut : ceux du territoire)")
     p.add_argument("--communes", default="",
                    help="codes INSEE de communes, séparés par des virgules ; prend le dessus sur --departements")
     p.add_argument("--contours-iris", default="",
                    help="fichier ou lien des contours IRIS (gpkg/shp/zip/7z) ; vide : service WFS de l'IGN, sinon commune")
     p.add_argument("--seuil-faible-population", type=int, default=20,
                    help="carreaux sous ce nombre d'habitants marqués faible_population (défaut : 20)")
-    p.add_argument("--data", default=str(RACINE / "data"), help="dossier data/ (défaut : data/ à la racine du dépôt)")
+    p.add_argument("--data", default=str(RACINE / "data"), help="dossier data/ des sources (défaut : data/ à la racine du dépôt)")
+    p.add_argument("--sortie", default="", help="dossier des tables silver (défaut : silver du territoire, ou <data>/silver si --data est donné)")
     p.add_argument("--sans-carte", action="store_true", help="ne pas dessiner carte_carreaux_socio.png")
     return p.parse_args(argv)
 
@@ -73,7 +76,7 @@ def main(argv=None):
     LIEN_CONTOURS_IRIS = args.contours_iris
     CARTE = not args.sans_carte
     DOSSIER = os.path.join(args.data, "bronze", "insee")
-    SORTIE = os.path.join(args.data, "silver")
+    SORTIE = args.sortie or (str(T.SILVER) if args.data == str(RACINE / "data") else os.path.join(args.data, "silver"))
     os.makedirs(SORTIE, exist_ok=True)
     # --- Liens INSEE (ne pas modifier) ------------------------------------------------
     LIENS = {
@@ -205,9 +208,10 @@ def main(argv=None):
 
     def lire_codes(texte):
         """Codes communes d'un lcog_geo, quel que soit le séparateur : "69381", "6938169382", "69381,69382"…
-        Un morceau qui n'est pas fait de codes de 5 chiffres (ex. "26,09") est ignoré."""
+        Un morceau qui n'est pas fait de codes de 5 caractères (ex. "26,09") est ignoré.
+        Les codes corses (2A004, 2B033) gardent leur lettre."""
         codes = []
-        for morceau in re.split(r"[^0-9]+", texte):
+        for morceau in re.split(r"[^0-9AB]+", texte.upper()):
             if morceau and len(morceau) % 5 == 0:
                 codes += [morceau[i:i + 5] for i in range(0, len(morceau), 5)]
         return codes
@@ -329,7 +333,12 @@ def main(argv=None):
         return pd.concat(morceaux, ignore_index=True), f"Service WFS IGN, couche {couche}", base
 
     try:
-        if LIEN_CONTOURS_IRIS.strip():
+        if LIEN_CONTOURS_IRIS.strip() and os.path.isfile(LIEN_CONTOURS_IRIS.strip()) \
+                and LIEN_CONTOURS_IRIS.strip().lower().endswith((".gpkg", ".shp", ".parquet")):
+            geo = LIEN_CONTOURS_IRIS.strip()  # fichier local déjà prêt (ex. data/bronze/ign/iris_wfs_france.gpkg)
+            iris = gpd.read_parquet(geo) if geo.lower().endswith(".parquet") else gpd.read_file(geo, engine="pyogrio")
+            source_iris, lien_iris = os.path.basename(geo), geo
+        elif LIEN_CONTOURS_IRIS.strip():
             nom = "contours_iris" + (".7z" if ".7z" in LIEN_CONTOURS_IRIS.lower() else ".zip")
             geo = plus_gros(extraire(telecharger(LIEN_CONTOURS_IRIS.strip(), nom)), (".gpkg", ".shp"))
             iris, source_iris, lien_iris = gpd.read_file(geo, engine="pyogrio"), os.path.basename(geo), LIEN_CONTOURS_IRIS.strip()

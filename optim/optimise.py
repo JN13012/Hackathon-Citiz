@@ -28,6 +28,7 @@ Usage : python optim/optimise.py [--budget 500000] [--scenario central] [--equit
 """
 import argparse
 import heapq
+import sys
 from pathlib import Path
 
 import geopandas as gpd
@@ -36,7 +37,9 @@ import pandas as pd
 from scipy.spatial import cKDTree
 
 ROOT = Path(__file__).resolve().parent.parent
-SILVER, GOLD = ROOT / "data" / "silver", ROOT / "data" / "gold"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import territoire as T  # noqa: E402
+SILVER, GOLD = T.SILVER, T.GOLD
 CRS = 2154
 WALK_RADIUS_M = 400 / 1.3  # 5 min à 4,8 km/h, avec un coefficient de détour de 1,3 (approximation EDA)
 
@@ -92,7 +95,7 @@ def existing_service(carreaux, notes):
     if offre is None:
         notes.append("[ATTENTION] gold_offre absent : aucune desserte existante retirée")
         return served
-    pairs = read(GOLD / "accessibilite_ara" / "resultats" / "internes" / "paires_accessibles.parquet")
+    pairs = read(T.ACCESSIBILITE / "resultats" / "internes" / "paires_accessibles.parquet")
     car_idx = pd.Series(np.arange(len(carreaux)), index=carreaux["id_carreau"])
     if pairs is not None:
         types = offre.set_index("offre_id")["type"]

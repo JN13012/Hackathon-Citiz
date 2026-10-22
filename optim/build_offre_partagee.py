@@ -36,7 +36,7 @@ TDG_API = "https://transport.data.gouv.fr/api/datasets"
 CITIZ_BACKEND = "https://backend.citiz.fr/public/provider/{}/gbfs/v3.0/gbfs.json"
 CITIZ_PROVIDERS = range(1, 41)  # numéros de fournisseur testés (18 actifs en octobre 2026)
 TIMEOUT = 15  # s par requête : un serveur qui ne répond pas est abandonné vite (sans nouvelle tentative)
-CACHE_META = T.BRONZE / "gbfs_cache.json"
+CACHE_META = T.BRONZE_TERRITOIRE / "gbfs_cache.json"
 
 TYPE_BY_FORM_FACTOR = {"car": "autopartage", "bicycle": "velo", "cargo_bicycle": "velo",
                        "scooter": "trottinette", "scooter_standing": "trottinette",
@@ -251,18 +251,18 @@ def main():
 
     communes = T.load_communes(args.contours)
     territory = f"{T.NIVEAU}:{','.join(T.CODES)}" if args.contours is None else str(args.contours)
-    T.BRONZE.mkdir(parents=True, exist_ok=True)
+    T.BRONZE_TERRITOIRE.mkdir(parents=True, exist_ok=True)
     T.SILVER.mkdir(parents=True, exist_ok=True)
     meta = json.loads(CACHE_META.read_text()) if CACHE_META.exists() else {}
     if not args.refresh and meta == {"date": date.today().isoformat(), "territoire": territory}:
         print(f"Relevé GBFS du jour réutilisé ({CACHE_META.name}) ; --refresh pour le refaire")
-        flux = pd.read_csv(T.BRONZE / "gbfs_flux.csv")
-        raw = pd.read_parquet(T.BRONZE / "gbfs_stations_brut.parquet")
+        flux = pd.read_csv(T.BRONZE_TERRITOIRE / "gbfs_flux.csv")
+        raw = pd.read_parquet(T.BRONZE_TERRITOIRE / "gbfs_stations_brut.parquet")
     else:
         flux, raw = download(communes)
-        flux.to_csv(T.BRONZE / "gbfs_flux.csv", index=False)
+        flux.to_csv(T.BRONZE_TERRITOIRE / "gbfs_flux.csv", index=False)
         raw.astype({"capacite": str, "nb_vehicules": str, "nb_places_libres": str,
-                    "en_service": str, "station_virtuelle": str}).to_parquet(T.BRONZE / "gbfs_stations_brut.parquet")
+                    "en_service": str, "station_virtuelle": str}).to_parquet(T.BRONZE_TERRITOIRE / "gbfs_stations_brut.parquet")
         CACHE_META.write_text(json.dumps({"date": date.today().isoformat(), "territoire": territory}))
 
     qc = ["Rapport qualité - table stations_partagees", "=" * 44,

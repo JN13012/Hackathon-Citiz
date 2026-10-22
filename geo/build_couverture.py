@@ -67,7 +67,8 @@ def process_tile(tile):
     qp = directory / "reseau_pieton_qc.json"
     qc = json.loads(qp.read_text())
     if (sha256(qp) != ctx["manifest"]["tuiles"][tile]["qc_sha256"]
-            or qc["signature"] != ctx["manifest"]["signature"] or qc["etat"] != "valide"):
+            or qc["signature"] != ctx["manifest"]["signature"]
+            or qc["etat"] not in ("valide", "valide_sans_troncon_sans_origine")):  # tuile en mer : vide, sans origine
         raise ValueError(f"Tuile réseau incompatible : {tile}")
     verify_files(directory, qc["fichiers"])
     candidates = ctx["candidates"].iloc[ctx["owners"].get(tile, [])].reset_index(drop=True)
@@ -77,6 +78,8 @@ def process_tile(tile):
     query[1] = np.searchsorted(js, query[1])
     needed = bool(query.size and (candidates.statut.eq("ok").to_numpy()[query[0]] & population.statut.eq("ok").to_numpy()[query[1]]).any())
     engine = None
+    if needed and qc["etat"] != "valide":
+        raise ValueError(f"Tuile sans tronçon mais avec des trajets à calculer : {tile}")
     if needed:
         edges = pd.read_parquet(directory / "reseau_pieton_troncons.parquet", columns=["de", "vers", "cle", "longueur_m", "temps_pieton_s"])
         engine = CoverageNetwork(edges)
