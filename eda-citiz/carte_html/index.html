@@ -48,6 +48,10 @@
   .lg { display:flex; gap:14px; align-items:center; } .lg i { display:inline-block; width:11px; height:11px; border-radius:50%; margin-right:5px; border:1px solid #fff; }
   .nb { color:#fff; border:2px solid #fff; border-radius:50%; font:700 11px/20px system-ui; text-align:center; box-shadow:0 0 4px rgba(0,0,0,.6); }
   .fiche b { color:#0b6f66; } .fiche { font-size:13px; line-height:1.55; }
+  .legende { width:290px; padding:10px 14px 10px; font-size:12px; } .legende .lt { font-weight:700; color:var(--teal-clair); line-height:1.35; } .legende .lt span { font-weight:500; color:var(--gris); }
+  .legende .barre { height:12px; border-radius:6px; margin:9px 0 3px; } .legende .rep { position:relative; height:15px; } .legende .rep span { position:absolute; transform:translateX(-50%); font-size:11px; white-space:nowrap; } .legende .rep span:last-child { transform:translateX(-100%); }
+  .legende .ext { display:flex; justify-content:space-between; color:var(--gris); font-size:11px; }
+  .couches-ou { display:none; } .mode-ou .couches-ou { display:block; } .mode-ou .couches-acces, .mode-ou .legende { display:none; }
   footer { padding:0 32px 14px; color:var(--gris); font-size:12px; }
   .leaflet-control-attribution { background:rgba(255,255,255,.75) !important; }
   @media (max-width:900px){ .kpis{grid-template-columns:repeat(2,1fr);} }
@@ -75,6 +79,7 @@
 <script src="./leaflet.js"></script>
 <script src="donnees.js"></script>
 <script src="portefeuille.js"></script>
+<script src="besoin.js"></script>
 <script>
 let _t, _touche = false, modeOu = false;
 const CATEGORIES = ["Métropole","Grande ville","Ville moyenne","Zone rurale"];
@@ -101,7 +106,9 @@ const mk = suf => ({france: L.imageOverlay("france"+suf+".webp", bnd("france"+su
   reg: Object.fromEntries(regs.filter(r=>SURCOUCHES[r+suf]).map(r=>[r.slice(1), L.imageOverlay(r+suf+".webp", bnd(r+suf), {opacity:1, interactive:false})]))});
 const JEUX = {"":mk("")}; KC.forEach(k=>JEUX["_"+k]=mk("_"+k));
 let detail = null, jeu = "", catIdx = -1, regIdx = -1, regCode = "";
+function retirerChaleur(){ Object.values(JEUX).forEach(J=>{ carte.removeLayer(J.france); J.regions.forEach(l=>carte.removeLayer(l)); Object.values(J.reg).forEach(l=>carte.removeLayer(l)); }); }
 function majSurcouches(force){
+  if (modeOu) return;
   const d = carte.getZoom() >= 7;
   if (!force && d === detail) return; detail = d;
   Object.values(JEUX).forEach(J=>{ carte.removeLayer(J.france); J.regions.forEach(l=>carte.removeLayer(l)); Object.values(J.reg).forEach(l=>carte.removeLayer(l)); });
@@ -119,7 +126,8 @@ function dessiner(){
   const t = carte.getSize(), dpr = window.devicePixelRatio||1; cv.width=t.x*dpr; cv.height=t.y*dpr; cv.style.width=t.x+"px"; cv.style.height=t.y+"px";
   L.DomUtil.setPosition(cv, carte.containerPointToLayerPoint([0,0]));
   const g = cv.getContext("2d"); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,t.x,t.y); dessines=[];
-  if (modeOu || !document.getElementById("c_arrets").checked) return;
+  if (modeOu) { dessinerExistant(g); return; }
+  if (!document.getElementById("c_arrets").checked) return;
   const z = carte.getZoom(), s = seuil(z), b = carte.getBounds().pad(0.05);
   const lo0=b.getWest()*1e4, lo1=b.getEast()*1e4, la0=b.getSouth()*1e4, la1=b.getNorth()*1e4;
   const cell = z<9 ? 12 : z<10.5 ? 10 : z<12 ? 6 : 0;   // une seule pastille par case : on garde la plus grosse, la carte de chaleur reste lisible
@@ -135,6 +143,14 @@ function dessiner(){
       g.beginPath(); g.arc(qx,qy,r,0,6.2832); g.fill(); g.lineWidth=0.6; g.strokeStyle="#fff"; g.stroke(); dessines.push([qx,qy,r,k,p]);
     }
   }
+}
+function dessinerExistant(g){   // offre existante de la région pilote, en gris discret
+  const o = document.getElementById("o_exist"); if (!o || !o.checked) return;
+  const z = carte.getZoom(), b = carte.getBounds().pad(0.05), cell = z<11 ? 8 : 0; g.fillStyle = "#3b3b3bbb";
+  for (const k of "btmgvac"){ const A = ARRETS[k], seen = new Set();
+    for (let i=0;i<A.length;i+=5){ if (A[i+4]!==10) continue; const x=A[i]/1e4, y=A[i+1]/1e4; if (x<b.getWest()||x>b.getEast()||y<b.getSouth()||y>b.getNorth()) continue;
+      const q = carte.latLngToContainerPoint([y,x]); if (cell){ const key = Math.floor(q.x/cell)*100000+Math.floor(q.y/cell); if (seen.has(key)) continue; seen.add(key); }
+      g.beginPath(); g.arc(q.x,q.y,z<11?2:3,0,6.2832); g.fill(); } }
 }
 const info = document.getElementById("info");
 carte.getContainer().addEventListener("mousemove", e=>{
@@ -162,18 +178,21 @@ function majCandidats(){
     L.marker([lat,lon],{icon:L.divIcon({className:"",html:`<div class="num">${rang}</div>`,iconSize:[22,22]})}).bindPopup(`<b>Candidat n°${rang} · ${aire}</b><br>${com}<br>${esp(gain)} habitants gagnés à 5 min à pied`).addTo(grpCand);
   });
 }
-function majStations(){ const sel=document.getElementById("c_stations").checked; grpStations.clearLayers();
-  if (sel && !modeOu) STATIONS.forEach((s,i)=>{ if ((catIdx<0 || s[7]===catIdx) && (regIdx<0 || s[8]===regIdx)) grpStations.addLayer(marqS[i]); }); }
+function majStations(){ const sel = modeOu ? document.getElementById("o_exist").checked : document.getElementById("c_stations").checked, ri = modeOu ? 10 : regIdx, ci = modeOu ? -1 : catIdx; grpStations.clearLayers();
+  if (sel) STATIONS.forEach((s,i)=>{ if ((ci<0 || s[7]===ci) && (ri<0 || s[8]===ri)) grpStations.addLayer(marqS[i]); }); }
 
 // ---- Panneau de couches ----
 const ctrl = L.control({position:"topright"});
-ctrl.onAdd = ()=>{ const d=L.DomUtil.create("div","boite couches");
+ctrl.onAdd = ()=>{ const d=L.DomUtil.create("div","boite couches couches-acces");
   d.innerHTML = `<details><summary style="cursor:pointer;font-weight:600">Couches</summary><label><input type="checkbox" id="c_stations" checked> Stations Citiz <span class="pt" style="background:#fff"></span><span class="pt" style="background:#9467bd"></span><span class="pt" style="background:#ff7f0e"></span></label>
   <label><input type="checkbox" id="c_cand" checked> Candidats (5 par aire, dès le zoom ville)</label>
   <label><input type="checkbox" id="c_arrets" checked> Arrêts et stations</label>` + Object.entries(TYPES).map(([k,[n,c]])=>`<label style="margin-left:18px"><input type="checkbox" data-t="${k}" checked><span class="pt" style="background:${c}"></span>${n}</label>`).join("") +
   `<div style="color:#6b6b6b;font-size:11.5px;margin-top:4px">taille des points = habitants desservis · ○ station · violet : virtuelle · orange : annoncée</div></details>`;
   L.DomEvent.disableClickPropagation(d); return d; };
 ctrl.addTo(carte);
+const lgd = L.control({position:"bottomleft"});
+lgd.onAdd = ()=>{ const d=L.DomUtil.create("div","boite legende"); d.innerHTML = `<div class="lt">Options de transport à 5 min à pied<br><span>nombre moyen par habitant</span></div><div class="barre" style="background:linear-gradient(90deg,${stops})"></div><div class="rep">${REPERES.map(([p,l])=>`<span style="left:${p}%">${l}</span>`).join("")}</div><div class="ext"><span>Peu desservi</span><span>Très bien desservi</span></div>`; return d; };
+lgd.addTo(carte);
 document.getElementById("c_stations").onchange = majStations; document.getElementById("c_cand").onchange = majCandidats; document.getElementById("c_arrets").onchange = dessiner;
 document.querySelectorAll("[data-t]").forEach(i=>i.onchange=()=>{actifs[i.dataset.t]=i.checked; dessiner();});
 
@@ -206,24 +225,33 @@ carte.on("zoomend moveend", ()=>{ majSurcouches(); dessiner(); }); carte.on("zoo
 remplirVilles(); afficherZone(); majSurcouches(); dessiner();
 
 // ---- Où ouvrir ? : portefeuille priorisé sous budget (modèle de potentiel + optimisation, Auvergne-Rhône-Alpes) ----
-const TOU = {citiz:["Station Citiz","#00a99d"], bus:["Arrêt de bus","#4664a0"], velo:["Station vélo","#1ea05a"]};
-const grpOu = L.layerGroup().addTo(carte), el = id => document.getElementById(id), btn = el("btnOu"), br = el("br");
-el("lgOu").innerHTML = Object.values(TOU).map(([n,c])=>`<span><i style="background:${c}"></i>${n}</span>`).join("");
+const TOU = {citiz:["Station Citiz","#7b2cbf"], bus:["Arrêt de bus","#ff8c00"], velo:["Station vélo","#ffffff"]};
+const grpOu = L.layerGroup().addTo(carte), grpZone = L.layerGroup().addTo(carte), el = id => document.getElementById(id), btn = el("btnOu"), br = el("br");
+el("lgOu").innerHTML = Object.values(TOU).map(([n,c])=>`<span><i style="background:${c};${c==="#ffffff"?"border-color:#111":""}"></i>${n}</span>`).join("");
+const besoinL = L.imageOverlay("besoin_r84.webp", [[BESOIN["84"][0],BESOIN["84"][1]],[BESOIN["84"][2],BESOIN["84"][3]]], {opacity:1, interactive:false});
+const ctrlOu = L.control({position:"topright"});
+ctrlOu.onAdd = ()=>{ const d=L.DomUtil.create("div","boite couches couches-ou");
+  d.innerHTML = `<details open><summary style="cursor:pointer;font-weight:600">Couches</summary>` +
+    Object.entries(TOU).map(([k,[n,c]])=>`<label><input type="checkbox" id="o_${k}" checked><span class="pt" style="background:${c};${c==="#ffffff"?"border-color:#111":""}"></span>${{citiz:"Stations Citiz proposées",bus:"Arrêts de bus proposés",velo:"Stations vélo proposées"}[k]}</label>`).join("") +
+    `<label><input type="checkbox" id="o_besoin" checked>Habitants sans aucune option</label><label><input type="checkbox" id="o_exist">Offre existante (stations et arrêts)</label>
+     <label><input type="checkbox" id="o_zone" checked>Zone à 5 min à pied au clic</label><label><input type="checkbox" id="o_pos">Stations Citiz à l'équilibre seulement</label>
+     <div style="color:#8fa3a8;font-size:11.5px;margin-top:4px">pastille = rang de priorité · fond sombre = plus d'habitants sans option</div></details>`;
+  L.DomEvent.disableClickPropagation(d); return d; };
+ctrlOu.addTo(carte);
 const eur = n => esp(n) + " €";
 function majOu(){
-  const z = carte.getZoom(), B = +br.value, sel = PORTEFEUILLE.filter(r=>r[11] <= B); el("bv").textContent = eur(B); grpOu.clearLayers();
+  const z = carte.getZoom(), B = +br.value, sel = PORTEFEUILLE.filter(r=>r[11] <= B && el("o_"+r[1]).checked && !(el("o_pos").checked && r[1]==="citiz" && r[6]<0)); el("bv").textContent = eur(B); grpOu.clearLayers();
   sel.forEach(r=>{
     const [rang,type,com,hab,cout,loc,marge,veh,co2,lon,lat,,,est] = r, [nom,col] = TOU[type];
     const f = `<div class="fiche"><b>N° ${rang} · ${nom}</b> · ${com}<br>${esp(hab)} habitants gagnés à 5 min à pied${est?" (estimé)":""}<br>Coût : ${eur(cout)} / an`+
       (type==="citiz" ? `<br>Usage attendu : ${String(loc).replace(".",",")} location / jour<br>Équilibre : ${marge>=0?"+":"−"}${eur(Math.abs(marge))} / an<br>${veh}` : "") + `</div>`;
-    L.marker([lat,lon],{icon:L.divIcon({className:"",html:z>=10 ? `<div class="nb" style="background:${col};width:24px;height:24px;line-height:20px">${rang}</div>` : `<div class="nb" style="background:${col};width:13px;height:13px;border-width:1.5px"></div>`,iconSize:z>=10?[24,24]:[13,13]})}).bindPopup(f).addTo(grpOu);
+    L.marker([lat,lon],{icon:L.divIcon({className:"",html:z>=10 ? `<div class="nb" style="background:${col};${type==="velo"?"color:#111;border-color:#111;":""}width:24px;height:24px;line-height:20px">${rang}</div>` : `<div class="nb" style="background:${col};${type==="velo"?"border-color:#111;":""}width:13px;height:13px;border-width:1.5px"></div>`,iconSize:z>=10?[24,24]:[13,13]})}).bindPopup(f).on("popupopen",()=>{ grpZone.clearLayers(); if (el("o_zone").checked) L.circle([lat,lon],{radius:400,color:"#111",weight:1.5,dashArray:"5 4",fillColor:"#111",fillOpacity:.08,interactive:false}).addTo(grpZone); }).on("popupclose",()=>grpZone.clearLayers()).addTo(grpOu);
   });
   const last = sel[sel.length-1], citiz = sel.filter(r=>r[1]==="citiz");
   const t = [[sel.length,"Équipements à ouvrir"],[last?esp(last[12]):0,"Habitants nouvellement desservis"],[last?eur(last[11]):"0 €","Budget annuel utilisé"],
     [eur(citiz.reduce((a,r)=>a+(r[6]||0),0)),"Équilibre annuel des nouvelles stations Citiz"],[esp(citiz.reduce((a,r)=>a+(r[8]||0),0))+" t","CO₂ évité par an"]];
   el("kpis").innerHTML = t.map(([a,b])=>`<div class="kpi"><b>${a}</b><span>${b}</span></div>`).join("");
 }
-function opacite(o){ Object.values(JEUX).forEach(J=>{ J.france.setOpacity(o); J.regions.forEach(l=>l.setOpacity(o)); }); }
 function basculer(){
   modeOu = !modeOu; document.body.classList.toggle("mode-ou", modeOu);
   btn.textContent = modeOu ? "← Carte d'accès" : "Où ouvrir ?"; btn.classList.toggle("retour", modeOu);
@@ -231,12 +259,13 @@ function basculer(){
   if (modeOu){
     el("zone").textContent = "Où ouvrir · Auvergne-Rhône-Alpes, territoire pilote · classement par habitants gagnés par euro";
     el("note").textContent = "Potentiel estimé à partir des données annuelles moyennes de Citiz (≈ 0,5 location par jour et par véhicule), modulé par un modèle de potentiel. Chaque habitant est compté une fois par type d'équipement.";
-    opacite(0.3); majStations(); majCandidats(); dessiner(); majOu(); _touche = true;
+    retirerChaleur(); if (el("o_besoin").checked) besoinL.addTo(carte); majStations(); majCandidats(); dessiner(); majOu(); _touche = true;
     carte.fitBounds([[44.9,4.0],[46.3,6.4]], {animate:false, padding:[10,10]});
-  } else { grpOu.clearLayers(); opacite(1); afficherZone(); }
+  } else { grpOu.clearLayers(); grpZone.clearLayers(); carte.removeLayer(besoinL); afficherZone(); }
 }
 carte.on("zoomend", ()=>{ if (modeOu) majOu(); });
 btn.onclick = basculer; br.oninput = majOu;
+["citiz","bus","velo","pos"].forEach(k=>el("o_"+k).onchange = majOu); el("o_exist").onchange = ()=>{ majStations(); dessiner(); }; el("o_besoin").onchange = e=>{ if (!modeOu) return; if (e.target.checked) besoinL.addTo(carte); else carte.removeLayer(besoinL); };
 function recadrer(){ carte.invalidateSize(); afficherZone(); }
 ['mousedown','wheel','touchstart'].forEach(ev=>carte.getContainer().addEventListener(ev, ()=>{ _touche = true; }, {passive:true}));
 function recadrerSiBesoin(){ clearTimeout(_t); _t = setTimeout(()=>{ carte.invalidateSize(); if (!_touche) afficherZone(); }, 120); }

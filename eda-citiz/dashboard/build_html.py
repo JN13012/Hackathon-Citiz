@@ -52,6 +52,19 @@ def overlay(d, nom, larg_max, facteur=1.0):
 
 import os
 CATS = {"Métropole": "M", "Grande ville": "G", "Ville moyenne": "V", "Zone rurale": "R"}
+if os.environ.get("BESOIN"):    # couche « besoin » de l'outil Où ouvrir : habitants sans aucune option à 5 min, une seule teinte
+    r = os.environ["BESOIN"]; d = df[df.region == r]
+    marge = max(0.02, 0.03 * max(d.lon.max() - d.lon.min(), d.lat.max() - d.lat.min()))
+    lon0, lon1, la0, la1 = d.lon.min() - marge, d.lon.max() + marge, d.lat.min() - marge, d.lat.max() + marge
+    m0, m1 = merc(la0), merc(la1); grand = max(lon1 - lon0, m1 - m0)
+    W, H = int(1800 * (lon1 - lon0) / grand), int(1800 * (m1 - m0) / grand)
+    px_m = (lon1 - lon0) / W * 111320 * np.cos(np.radians(d.lat.mean())); sg = max(2.0, 1100 / px_m)
+    ix = np.minimum(((d.lon - lon0) / (lon1 - lon0) * W).astype(int), W - 1).to_numpy(); iy = np.minimum(((m1 - merc(d.lat)) / (m1 - m0) * H).astype(int), H - 1).to_numpy()
+    num = np.zeros((H, W)); np.add.at(num, (iy, ix), (d.habitants * (d.nb == 0)).to_numpy()); gz = gauss(num, sg)
+    t = np.clip(gz / np.percentile(gz[gz > 1e-9], 97), 0, 1) ** 0.8
+    img = np.dstack([np.full((H, W), 40), np.full((H, W), 28), np.full((H, W), 70), t * 150]).astype(np.uint8)
+    Image.fromarray(img, "RGBA").save(OUT / f"besoin_r{r}.webp", quality=85, method=4)
+    (OUT / "besoin.js").write_text("const BESOIN=" + json.dumps({r: [round(la0, 4), round(lon0, 4), round(la1, 4), round(lon1, 4)]}) + ";\n"); print("besoin ok", W, H); sys.exit(0)
 if os.environ.get("CAT"):       # surcouches d'une seule catégorie (France + régions), noms suffixés
     c = os.environ["CAT"]; k = CATS[c]; d0 = df[df.categorie == c]; b = {f"france_{k}": overlay(d0, f"france_{k}", 2600)}
     for r, d in d0.groupby("region"):
