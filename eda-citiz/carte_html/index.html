@@ -16,12 +16,12 @@
   .pastille { background:#fff; border-radius:16px; padding:8px 16px; display:flex; align-items:center; box-shadow:0 4px 18px rgba(0,0,0,.35); }
   .logo-citiz { height:38px; width:auto; display:block; }
   .logo-epitech { height:62px; width:62px; display:block; border-radius:14px; box-shadow:0 4px 18px rgba(31,59,255,.45); }
-  .titre-bloc { flex:1; min-width:260px; }
+  .titre-bloc { flex:1; min-width:300px; } .sous { white-space:nowrap; }
   h1 { font-size:25px; margin:0 0 3px; font-weight:800; letter-spacing:-.015em; }
   h1 em { font-style:normal; color:var(--teal); }
   .sous { color:var(--gris); font-size:13.5px; }
   .choix { display:flex; gap:10px; flex-wrap:wrap; }
-  select { font:inherit; font-weight:600; padding:10px 18px; border:1.5px solid var(--teal); border-radius:999px; background:var(--panneau); color:var(--texte); min-width:190px; outline:none; cursor:pointer; }
+  select { font:inherit; font-weight:600; padding:10px 14px; border:1.5px solid var(--teal); border-radius:999px; background:var(--panneau); color:var(--texte); min-width:150px; outline:none; cursor:pointer; }
   select:focus { box-shadow:0 0 0 3px rgba(77,195,184,.3); }
   select:disabled { opacity:.45; cursor:default; }
   .partenaires { display:flex; align-items:center; }
@@ -58,6 +58,7 @@
   <div class="pastille"><img class="logo-citiz" src="logo_citiz.png" alt="Citiz"></div>
   <div class="titre-bloc"><h1>Carte d'accès aux <em>transports</em></h1><div class="sous">Solutions de transport à 5 minutes à pied · France métropolitaine</div></div>
   <div class="choix">
+    <select id="reg" aria-label="Région"></select>
     <select id="cat" aria-label="Catégorie"></select>
     <select id="ville" aria-label="Ville"></select>
   </div>
@@ -96,14 +97,17 @@ const KC = ["M","G","V","R"];
 const bnd = k => [[SURCOUCHES[k][0],SURCOUCHES[k][1]],[SURCOUCHES[k][2],SURCOUCHES[k][3]]];
 const regs = Object.keys(SURCOUCHES).filter(k=>k!=="france" && !k.includes("_"));
 const mk = suf => ({france: L.imageOverlay("france"+suf+".webp", bnd("france"+suf), {opacity:1, interactive:false, zIndex:300}),
-  regions: regs.filter(r=>SURCOUCHES[r+suf]).map(r=>L.imageOverlay(r+suf+".webp", bnd(r+suf), {opacity:1, interactive:false}))});
+  regions: regs.filter(r=>SURCOUCHES[r+suf]).map(r=>L.imageOverlay(r+suf+".webp", bnd(r+suf), {opacity:1, interactive:false})),
+  reg: Object.fromEntries(regs.filter(r=>SURCOUCHES[r+suf]).map(r=>[r.slice(1), L.imageOverlay(r+suf+".webp", bnd(r+suf), {opacity:1, interactive:false})]))});
 const JEUX = {"":mk("")}; KC.forEach(k=>JEUX["_"+k]=mk("_"+k));
-let detail = null, jeu = "", catIdx = -1;
+let detail = null, jeu = "", catIdx = -1, regIdx = -1, regCode = "";
 function majSurcouches(force){
   const d = carte.getZoom() >= 7;
   if (!force && d === detail) return; detail = d;
-  Object.values(JEUX).forEach(J=>{ carte.removeLayer(J.france); J.regions.forEach(l=>carte.removeLayer(l)); });
-  const J = JEUX[jeu]; if (d) J.regions.forEach(l=>l.addTo(carte)); else J.france.addTo(carte);
+  Object.values(JEUX).forEach(J=>{ carte.removeLayer(J.france); J.regions.forEach(l=>carte.removeLayer(l)); Object.values(J.reg).forEach(l=>carte.removeLayer(l)); });
+  const J = JEUX[jeu];
+  if (regCode) { if (J.reg[regCode]) J.reg[regCode].addTo(carte); }
+  else if (d) J.regions.forEach(l=>l.addTo(carte)); else J.france.addTo(carte);
 }
 
 // Arrêts et stations (taille = habitants desservis) : dessin sur canvas, filtré selon le zoom
@@ -120,8 +124,8 @@ function dessiner(){
   const lo0=b.getWest()*1e4, lo1=b.getEast()*1e4, la0=b.getSouth()*1e4, la1=b.getNorth()*1e4;
   for (const k of "btmgvac") {
     if (!actifs[k]) continue; const A = ARRETS[k], seu = k==="b" ? s : s*0.35; g.fillStyle = TYPES[k][1] + "d9";
-    for (let i=0;i<A.length;i+=4){
-      const p = A[i+2]; if (p < seu) continue; if (catIdx>=0 && A[i+3]!==catIdx) continue; const x=A[i], y=A[i+1]; if (x<lo0||x>lo1||y<la0||y>la1) continue;
+    for (let i=0;i<A.length;i+=5){
+      const p = A[i+2]; if (p < seu) continue; if (catIdx>=0 && A[i+3]!==catIdx) continue; if (regIdx>=0 && A[i+4]!==regIdx) continue; const x=A[i], y=A[i+1]; if (x<lo0||x>lo1||y<la0||y>la1) continue;
       const q = carte.latLngToContainerPoint([y/1e4, x/1e4]); const r = Math.min(13, 1.8 + Math.sqrt(p)/18*(z>=10?1.3:1));
       g.beginPath(); g.arc(q.x,q.y,r,0,6.2832); g.fill(); g.lineWidth=0.6; g.strokeStyle="#fff"; g.stroke(); dessines.push([q.x,q.y,r,k,p]);
     }
@@ -149,12 +153,12 @@ function majCandidats(){
   CANDIDATS.forEach(c=>{
     const [lon,lat,aire,com,rang,gain]=c; const a = ZONES[aire];
     const dans = zoneCourante==="France" || zoneCourante===aire || zoneCourante===(a&&a.cat);
-    if (!dans || z<7.5 || (catIdx>=0 && !(a && a.cat===CATEGORIES[catIdx]))) return;
+    if (!dans || z<7.5 || (catIdx>=0 && !(a && a.cat===CATEGORIES[catIdx])) || (regCode && !(a && a.reg===regCode))) return;
     L.marker([lat,lon],{icon:L.divIcon({className:"",html:`<div class="num">${rang}</div>`,iconSize:[22,22]})}).bindPopup(`<b>Candidat n°${rang} · ${aire}</b><br>${com}<br>${esp(gain)} habitants gagnés à 5 min à pied`).addTo(grpCand);
   });
 }
 function majStations(){ const sel=document.getElementById("c_stations").checked; grpStations.clearLayers();
-  if (sel && !modeOu) STATIONS.forEach((s,i)=>{ if (catIdx<0 || s[7]===catIdx) grpStations.addLayer(marqS[i]); }); }
+  if (sel && !modeOu) STATIONS.forEach((s,i)=>{ if ((catIdx<0 || s[7]===catIdx) && (regIdx<0 || s[8]===regIdx)) grpStations.addLayer(marqS[i]); }); }
 
 // ---- Panneau de couches ----
 const ctrl = L.control({position:"topright"});
@@ -169,24 +173,29 @@ document.getElementById("c_stations").onchange = majStations; document.getElemen
 document.querySelectorAll("[data-t]").forEach(i=>i.onchange=()=>{actifs[i.dataset.t]=i.checked; dessiner();});
 
 // ---- Zone choisie : chiffres clés ----
-const selCat = document.getElementById("cat"), selVille = document.getElementById("ville");
-selCat.innerHTML = ["Toute la France",...CATEGORIES].map(c=>`<option>${c}</option>`).join("");
+const selCat = document.getElementById("cat"), selVille = document.getElementById("ville"), selReg = document.getElementById("reg");
+selReg.innerHTML = `<option value="">Toutes les régions</option>` + REGIONS.map(([c,n])=>`<option value="${c}">${n}</option>`).join("");
+selCat.innerHTML = `<option value="">Toutes les catégories</option>` + CATEGORIES.map(c=>`<option>${c}</option>`).join("");
 function remplirVilles(){
-  const c = selCat.value;
-  if (c==="Toute la France"){ selVille.innerHTML="<option>—</option>"; selVille.disabled=true; return; }
-  const v = Object.keys(ZONES).filter(k=>ZONES[k].cat===c).sort((a,b)=>ZONES[b].pop-ZONES[a].pop);
+  const c = selCat.value, r = selReg.value;
+  if (!c){ selVille.innerHTML="<option value=''>—</option>"; selVille.disabled=true; return; }
+  const v = Object.keys(ZONES).filter(k=>ZONES[k].cat===c && (!r || ZONES[k].reg===r)).sort((a,b)=>ZONES[b].pop-ZONES[a].pop);
   selVille.innerHTML = `<option value="">Toutes les villes de cette catégorie</option>` + v.map(k=>`<option>${k}</option>`).join(""); selVille.disabled = !v.length;
 }
 function afficherZone(){
-  const c = selCat.value, v = selVille.value;
-  zoneCourante = c==="Toute la France" ? "France" : (v || c); const z = ZONES[zoneCourante], k = z.k;
-  document.getElementById("zone").textContent = (zoneCourante==="France" ? "France métropolitaine" : zoneCourante) + (DEFS[zoneCourante] ? " · " + DEFS[zoneCourante] : "");
+  const c = selCat.value, v = selVille.value, r = selReg.value;
+  zoneCourante = v ? v : (r && c) ? `R${r}|${c}` : r ? `R${r}` : c ? c : "France";
+  if (!ZONES[zoneCourante]) zoneCourante = r ? `R${r}` : "France";
+  const z = ZONES[zoneCourante], k = z.k, rn = r ? REGIONS.find(x=>x[0]===r)[1] : "";
+  document.getElementById("zone").textContent = [v || (c ? c : ""), rn || (v||c ? "" : "France métropolitaine")].filter(Boolean).join(" · ") + (!v && c && DEFS[c] ? " · " + DEFS[c] : "");
   const t = [[esp(k.hab),"Habitants (Filosofi 2021)"],[pct(k.sans),"Sans aucune option à 5 min"],[pct(k.citiz),"Station Citiz à 5 min"],[pct(k.sv),"Ménages sans voiture"],[esp(k.st),"Stations Citiz"]];
   document.getElementById("kpis").innerHTML = t.map(([a,b])=>`<div class="kpi"><b>${a}</b><span>${b}</span></div>`).join("");
   document.getElementById("note").textContent = `Pourcentages calculés sur ${pct(k.hab_calc/k.hab)} de la population (carreaux de 200 m d'au moins 11 habitants).`;
-  catIdx = c==="Toute la France" ? -1 : CATEGORIES.indexOf(c); jeu = catIdx<0 ? "" : "_"+KC[catIdx]; majSurcouches(true); majStations(); dessiner();
+  catIdx = c ? CATEGORIES.indexOf(c) : -1; regCode = r; regIdx = r ? REGIONS.findIndex(x=>x[0]===r) : -1; jeu = catIdx<0 ? "" : "_"+KC[catIdx];
+  majSurcouches(true); majStations(); dessiner();
   _touche = false; const bb = z.bbox; carte.fitBounds([[bb[0],bb[1]],[bb[2],bb[3]]], {animate:false, padding:[10,10]}); majCandidats();
 }
+selReg.onchange = ()=>{ remplirVilles(); afficherZone(); };
 selCat.onchange = ()=>{ remplirVilles(); afficherZone(); }; selVille.onchange = afficherZone;
 carte.on("zoomend moveend", ()=>{ majSurcouches(); dessiner(); }); carte.on("zoomend", majCandidats);
 remplirVilles(); afficherZone(); majSurcouches(); dessiner();
@@ -201,21 +210,21 @@ function majOu(){
   sel.forEach(r=>{
     const [rang,type,com,hab,cout,loc,marge,veh,co2,lon,lat,,,est] = r, [nom,col] = TOU[type];
     const f = `<div class="fiche"><b>N° ${rang} · ${nom}</b> · ${com}<br>${esp(hab)} habitants gagnés à 5 min à pied${est?" (estimé)":""}<br>Coût : ${eur(cout)} / an`+
-      (type==="citiz" ? `<br>Usage attendu : ${String(loc).replace(".",",")} location / jour<br>Marge : ${marge>=0?"+":"−"}${eur(Math.abs(marge))} / an<br>${veh}` : "") + `</div>`;
+      (type==="citiz" ? `<br>Usage attendu : ${String(loc).replace(".",",")} location / jour<br>Équilibre : ${marge>=0?"+":"−"}${eur(Math.abs(marge))} / an<br>${veh}` : "") + `</div>`;
     L.marker([lat,lon],{icon:L.divIcon({className:"",html:z>=10 ? `<div class="nb" style="background:${col};width:24px;height:24px;line-height:20px">${rang}</div>` : `<div class="nb" style="background:${col};width:13px;height:13px;border-width:1.5px"></div>`,iconSize:z>=10?[24,24]:[13,13]})}).bindPopup(f).addTo(grpOu);
   });
   const last = sel[sel.length-1], citiz = sel.filter(r=>r[1]==="citiz");
   const t = [[sel.length,"Équipements à ouvrir"],[last?esp(last[12]):0,"Habitants nouvellement desservis"],[last?eur(last[11]):"0 €","Budget annuel utilisé"],
-    [eur(citiz.reduce((a,r)=>a+(r[6]||0),0)),"Marge annuelle des stations Citiz"],[esp(citiz.reduce((a,r)=>a+(r[8]||0),0))+" t","CO₂ évité par an"]];
+    [eur(citiz.reduce((a,r)=>a+(r[6]||0),0)),"Équilibre annuel des nouvelles stations Citiz"],[esp(citiz.reduce((a,r)=>a+(r[8]||0),0))+" t","CO₂ évité par an"]];
   el("kpis").innerHTML = t.map(([a,b])=>`<div class="kpi"><b>${a}</b><span>${b}</span></div>`).join("");
 }
 function opacite(o){ Object.values(JEUX).forEach(J=>{ J.france.setOpacity(o); J.regions.forEach(l=>l.setOpacity(o)); }); }
 function basculer(){
   modeOu = !modeOu; document.body.classList.toggle("mode-ou", modeOu);
   btn.textContent = modeOu ? "← Carte d'accès" : "Où ouvrir ?"; btn.classList.toggle("retour", modeOu);
-  el("cat").style.display = el("ville").style.display = modeOu ? "none" : ""; el("budget").style.display = modeOu ? "flex" : "none";
+  el("reg").style.display = el("cat").style.display = el("ville").style.display = modeOu ? "none" : ""; el("budget").style.display = modeOu ? "flex" : "none";
   if (modeOu){
-    el("zone").textContent = "Où ouvrir · Auvergne-Rhône-Alpes · classement par habitants gagnés par euro";
+    el("zone").textContent = "Où ouvrir · Auvergne-Rhône-Alpes, territoire pilote · classement par habitants gagnés par euro";
     el("note").textContent = "Potentiel estimé à partir des données annuelles moyennes de Citiz (≈ 0,5 location par jour et par véhicule), modulé par un modèle de potentiel. Chaque habitant est compté une fois par type d'équipement.";
     opacite(0.3); majStations(); majCandidats(); dessiner(); majOu(); _touche = true;
     carte.fitBounds([[44.9,4.0],[46.3,6.4]], {animate:false, padding:[10,10]});
