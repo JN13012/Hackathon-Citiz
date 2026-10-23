@@ -118,7 +118,9 @@ POP_TOT = float(g.population.sum()); print("population totale", POP_TOT, pop_cat
 
 def wq(v, w, p):
     i = np.argsort(v); c = np.cumsum(np.asarray(w)[i]); return float(np.asarray(v)[i][np.searchsorted(c, p / 100 * c[-1])])
-bbw = lambda d: [round(wq(d.lat, d.habitants, 3) - .015, 3), round(wq(d.lon, d.habitants, 3) - .02, 3), round(wq(d.lat, d.habitants, 97) + .015, 3), round(wq(d.lon, d.habitants, 97) + .02, 3)]
+def bbw(d):
+    la0, la1, lo0, lo1 = wq(d.lat, d.habitants, 10), wq(d.lat, d.habitants, 90), wq(d.lon, d.habitants, 10), wq(d.lon, d.habitants, 90)
+    pa, po = max(.01, .45 * (la1 - la0)), max(.015, .45 * (lo1 - lo0)); return [round(la0 - pa, 3), round(lo0 - po, 3), round(la1 + pa, 3), round(lo1 + po, 3)]
 # chiffres clés par zone
 def kp(d, nst, tot=None):
     h = d.habitants.sum()
