@@ -65,6 +65,7 @@
     <select id="reg" aria-label="Région"></select>
     <select id="cat" aria-label="Catégorie"></select>
     <select id="ville" aria-label="Ville"></select>
+    <select id="villeOu" aria-label="Ville" style="display:none"></select>
   </div>
   <button class="btn-ou" id="btnOu">Où ouvrir ?</button>
   <div class="partenaires"><img class="logo-epitech" src="logo_epitech.jpg" alt="Epitech Marseille"></div>
@@ -226,16 +227,16 @@ remplirVilles(); afficherZone(); majSurcouches(); dessiner();
 
 // ---- Où ouvrir ? : portefeuille priorisé sous budget (modèle de potentiel + optimisation, Auvergne-Rhône-Alpes) ----
 const TOU = {citiz:["Station Citiz","#7b2cbf"], bus:["Arrêt de bus","#ff8c00"], velo:["Station vélo","#ffffff"]};
-const grpOu = L.layerGroup().addTo(carte), grpZone = L.layerGroup().addTo(carte), el = id => document.getElementById(id), btn = el("btnOu"), br = el("br");
+const grpOu = L.layerGroup().addTo(carte), grpCandOu = L.layerGroup().addTo(carte), grpZone = L.layerGroup().addTo(carte), el = id => document.getElementById(id), btn = el("btnOu"), br = el("br");
 el("lgOu").innerHTML = Object.values(TOU).map(([n,c])=>`<span><i style="background:${c};${c==="#ffffff"?"border-color:#111":""}"></i>${n}</span>`).join("");
 const besoinL = L.imageOverlay("besoin_r84.webp", [[BESOIN["84"][0],BESOIN["84"][1]],[BESOIN["84"][2],BESOIN["84"][3]]], {opacity:1, interactive:false});
 const ctrlOu = L.control({position:"topright"});
 ctrlOu.onAdd = ()=>{ const d=L.DomUtil.create("div","boite couches couches-ou");
   d.innerHTML = `<details open><summary style="cursor:pointer;font-weight:600">Couches</summary>` +
     Object.entries(TOU).map(([k,[n,c]])=>`<label><input type="checkbox" id="o_${k}" checked><span class="pt" style="background:${c};${c==="#ffffff"?"border-color:#111":""}"></span>${{citiz:"Stations Citiz proposées",bus:"Arrêts de bus proposés",velo:"Stations vélo proposées"}[k]}</label>`).join("") +
-    `<label><input type="checkbox" id="o_besoin" checked>Habitants sans aucune option</label><label><input type="checkbox" id="o_exist">Offre existante (stations et arrêts)</label>
+    `<label><input type="checkbox" id="o_besoin" checked>Habitants sans aucune option</label><label><input type="checkbox" id="o_cand" checked>Sites candidats par ville (hors budget)</label><label><input type="checkbox" id="o_exist">Offre existante (stations et arrêts)</label>
      <label><input type="checkbox" id="o_zone" checked>Zone à 5 min à pied au clic</label><label><input type="checkbox" id="o_pos">Stations Citiz à l'équilibre seulement</label>
-     <div style="color:#8fa3a8;font-size:11.5px;margin-top:4px">pastille = rang de priorité · fond sombre = plus d'habitants sans option</div></details>`;
+     <div style="color:#8fa3a8;font-size:11.5px;margin-top:4px">pastille pleine = rang de priorité · cercle en pointillés = site candidat · fond sombre = plus d'habitants sans option</div></details>`;
   L.DomEvent.disableClickPropagation(d); return d; };
 ctrlOu.addTo(carte);
 const eur = n => esp(n) + " €";
@@ -247,6 +248,9 @@ function majOu(){
       (type==="citiz" ? `<br>Usage attendu : ${String(loc).replace(".",",")} location / jour<br>Équilibre : ${marge>=0?"+":"−"}${eur(Math.abs(marge))} / an<br>${veh}` : "") + `</div>`;
     L.marker([lat,lon],{icon:L.divIcon({className:"",html:z>=10 ? `<div class="nb" style="background:${col};${type==="velo"?"color:#111;border-color:#111;":""}width:24px;height:24px;line-height:20px">${rang}</div>` : `<div class="nb" style="background:${col};${type==="velo"?"border-color:#111;":""}width:13px;height:13px;border-width:1.5px"></div>`,iconSize:z>=10?[24,24]:[13,13]})}).bindPopup(f).on("popupopen",()=>{ grpZone.clearLayers(); if (el("o_zone").checked) L.circle([lat,lon],{radius:400,color:"#111",weight:1.5,dashArray:"5 4",fillColor:"#111",fillOpacity:.08,interactive:false}).addTo(grpZone); }).on("popupclose",()=>grpZone.clearLayers()).addTo(grpOu);
   });
+  grpCandOu.clearLayers();
+  if (el("o_cand").checked && z>=8.5) CANDIDATS.forEach(c=>{ const [lon,lat,aire,com,rang,gain] = c, a = ZONES[aire]; if (!a || a.reg!=="84") return;
+    L.circleMarker([lat,lon],{radius:z>=10?8:5,fillColor:"#fff",fillOpacity:.95,color:"#7b2cbf",weight:2.5,dashArray:"3 2"}).bindPopup(`<div class="fiche"><b>Site candidat n° ${rang}</b> · ${aire}<br>${com}<br>${esp(gain)} habitants gagnés à 5 min à pied<br><i>Choisi sur la couverture seulement, hors budget</i></div>`).addTo(grpCandOu); });
   const last = sel[sel.length-1], citiz = sel.filter(r=>r[1]==="citiz");
   const t = [[sel.length,"Équipements à ouvrir"],[last?esp(last[12]):0,"Habitants nouvellement desservis"],[last?eur(last[11]):"0 €","Budget annuel utilisé"],
     [eur(citiz.reduce((a,r)=>a+(r[6]||0),0)),"Équilibre annuel des nouvelles stations Citiz"],[esp(citiz.reduce((a,r)=>a+(r[8]||0),0))+" t","CO₂ évité par an"]];
@@ -255,17 +259,20 @@ function majOu(){
 function basculer(){
   modeOu = !modeOu; document.body.classList.toggle("mode-ou", modeOu);
   btn.textContent = modeOu ? "← Carte d'accès" : "Où ouvrir ?"; btn.classList.toggle("retour", modeOu);
-  el("reg").style.display = el("cat").style.display = el("ville").style.display = modeOu ? "none" : ""; el("budget").style.display = modeOu ? "flex" : "none";
+  el("reg").style.display = el("cat").style.display = el("ville").style.display = modeOu ? "none" : ""; el("budget").style.display = modeOu ? "flex" : "none"; el("villeOu").style.display = modeOu ? "" : "none";
   if (modeOu){
     el("zone").textContent = "Où ouvrir · Auvergne-Rhône-Alpes, territoire pilote · classement par habitants gagnés par euro";
     el("note").textContent = "Potentiel estimé à partir des données annuelles moyennes de Citiz (≈ 0,5 location par jour et par véhicule), modulé par un modèle de potentiel. Chaque habitant est compté une fois par type d'équipement.";
     retirerChaleur(); if (el("o_besoin").checked) besoinL.addTo(carte); majStations(); majCandidats(); dessiner(); majOu(); _touche = true;
-    carte.fitBounds([[44.9,4.0],[46.3,6.4]], {animate:false, padding:[10,10]});
-  } else { grpOu.clearLayers(); grpZone.clearLayers(); carte.removeLayer(besoinL); afficherZone(); }
+    el("villeOu").value = ""; carte.fitBounds([[44.9,4.0],[46.3,6.4]], {animate:false, padding:[10,10]});
+  } else { grpOu.clearLayers(); grpCandOu.clearLayers(); grpZone.clearLayers(); carte.removeLayer(besoinL); afficherZone(); }
 }
 carte.on("zoomend", ()=>{ if (modeOu) majOu(); });
 btn.onclick = basculer; br.oninput = majOu;
-["citiz","bus","velo","pos"].forEach(k=>el("o_"+k).onchange = majOu); el("o_exist").onchange = ()=>{ majStations(); dessiner(); }; el("o_besoin").onchange = e=>{ if (!modeOu) return; if (e.target.checked) besoinL.addTo(carte); else carte.removeLayer(besoinL); };
+["citiz","bus","velo","pos","cand"].forEach(k=>el("o_"+k).onchange = majOu);
+const villesOu = Object.keys(ZONES).filter(k=>ZONES[k].cat && ZONES[k].reg==="84").sort((a,b)=>ZONES[b].pop-ZONES[a].pop);
+el("villeOu").innerHTML = `<option value="">Toute la région</option>` + villesOu.map(k=>`<option>${k}</option>`).join("");
+el("villeOu").onchange = ()=>{ const v = el("villeOu").value, bb = v ? ZONES[v].bbox : [44.9,4.0,46.3,6.4]; carte.fitBounds([[bb[0],bb[1]],[bb[2],bb[3]]], {animate:false, padding:[10,10]}); majOu(); }; el("o_exist").onchange = ()=>{ majStations(); dessiner(); }; el("o_besoin").onchange = e=>{ if (!modeOu) return; if (e.target.checked) besoinL.addTo(carte); else carte.removeLayer(besoinL); };
 function recadrer(){ carte.invalidateSize(); afficherZone(); }
 ['mousedown','wheel','touchstart'].forEach(ev=>carte.getContainer().addEventListener(ev, ()=>{ _touche = true; }, {passive:true}));
 function recadrerSiBesoin(){ clearTimeout(_t); _t = setTimeout(()=>{ carte.invalidateSize(); if (!_touche) afficherZone(); }, 120); }
