@@ -178,9 +178,9 @@ selReg.innerHTML = `<option value="">Toutes les régions</option>` + REGIONS.map
 selCat.innerHTML = `<option value="">Toutes les catégories</option>` + CATEGORIES.map(c=>`<option>${c}</option>`).join("");
 function remplirVilles(){
   const c = selCat.value, r = selReg.value;
-  if (!c){ selVille.innerHTML="<option value=''>—</option>"; selVille.disabled=true; return; }
-  const v = Object.keys(ZONES).filter(k=>ZONES[k].cat===c && (!r || ZONES[k].reg===r)).sort((a,b)=>ZONES[b].pop-ZONES[a].pop);
-  selVille.innerHTML = `<option value="">Toutes les villes de cette catégorie</option>` + v.map(k=>`<option>${k}</option>`).join(""); selVille.disabled = !v.length;
+  if (!c && !r){ selVille.innerHTML="<option value=''>Choisir une ville</option>"; selVille.disabled=true; return; }
+  const v = Object.keys(ZONES).filter(k=>ZONES[k].cat && (!c || ZONES[k].cat===c) && (!r || ZONES[k].reg===r)).sort((a,b)=>ZONES[b].pop-ZONES[a].pop);
+  selVille.innerHTML = `<option value="">Choisir une ville</option>` + v.map(k=>`<option>${k}</option>`).join(""); selVille.disabled = !v.length;
 }
 function afficherZone(){
   const c = selCat.value, v = selVille.value, r = selReg.value;
