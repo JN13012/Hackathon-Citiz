@@ -81,7 +81,7 @@ const CATEGORIES = ["Métropole","Grande ville","Ville moyenne","Zone rurale"];
 const DEFS = {"Métropole":"aire de 1 million d'habitants et plus","Grande ville":"aire de 250 000 à 1 million","Ville moyenne":"aire de 50 000 à 250 000","Zone rurale":"moins de 50 000 habitants ou hors aire"};
 const TYPES = {b:["Bus et cars","#4664a0"], t:["Tramway","#c82828"], m:["Métro","#8c1e78"], g:["Gare","#141478"], v:["Vélos en libre-service","#1ea05a"], a:["Autopartage","#a06e28"], c:["Câble et bateau","#5a5a5a"]};
 const esp = n => Math.round(n).toLocaleString("fr-FR").replace(/ /g," ");
-const pct = x => Math.round(x*100) + " %";
+const pct = x => (x>0 && x<0.005) ? "< 1 %" : Math.round(x*100) + " %";
 
 // ---- Échelle de chaleur (la même que celle des images) ----
 const RT=[0,.1,.2,.3,.4,.55,.7,.85,1], RC=[[35,45,205],[75,105,235],[115,190,230],[110,200,165],[115,190,100],[200,215,80],[245,215,60],[240,140,50],[215,45,35]];
@@ -122,12 +122,17 @@ function dessiner(){
   if (modeOu || !document.getElementById("c_arrets").checked) return;
   const z = carte.getZoom(), s = seuil(z), b = carte.getBounds().pad(0.05);
   const lo0=b.getWest()*1e4, lo1=b.getEast()*1e4, la0=b.getSouth()*1e4, la1=b.getNorth()*1e4;
+  const cell = z<9 ? 12 : z<10.5 ? 10 : z<12 ? 6 : 0;   // une seule pastille par case : on garde la plus grosse, la carte de chaleur reste lisible
   for (const k of "btmgvac") {
-    if (!actifs[k]) continue; const A = ARRETS[k], seu = k==="b" ? s : s*0.35; g.fillStyle = TYPES[k][1] + "d9";
+    if (!actifs[k]) continue; const A = ARRETS[k], seu = k==="b" ? s : s*0.6; g.fillStyle = TYPES[k][1] + (z<10.5 ? "cc" : "d9"); const best = new Map(), liste = [];
     for (let i=0;i<A.length;i+=5){
       const p = A[i+2]; if (p < seu) continue; if (catIdx>=0 && A[i+3]!==catIdx) continue; if (regIdx>=0 && A[i+4]!==regIdx) continue; const x=A[i], y=A[i+1]; if (x<lo0||x>lo1||y<la0||y>la1) continue;
-      const q = carte.latLngToContainerPoint([y/1e4, x/1e4]); const r = Math.min(13, 1.8 + Math.sqrt(p)/18*(z>=10?1.3:1));
-      g.beginPath(); g.arc(q.x,q.y,r,0,6.2832); g.fill(); g.lineWidth=0.6; g.strokeStyle="#fff"; g.stroke(); dessines.push([q.x,q.y,r,k,p]);
+      const q = carte.latLngToContainerPoint([y/1e4, x/1e4]);
+      if (cell){ const key = Math.floor(q.x/cell)*100000 + Math.floor(q.y/cell), e = best.get(key); if (!e || e[2] < p) best.set(key, [q.x,q.y,p]); } else liste.push([q.x,q.y,p]);
+    }
+    for (const [qx,qy,p] of (cell ? best.values() : liste)){
+      const r = Math.min(z<9?3.2 : z<10.5?5.5 : 13, 1.8 + Math.sqrt(p)/18*(z>=10?1.3:1));
+      g.beginPath(); g.arc(qx,qy,r,0,6.2832); g.fill(); g.lineWidth=0.6; g.strokeStyle="#fff"; g.stroke(); dessines.push([qx,qy,r,k,p]);
     }
   }
 }

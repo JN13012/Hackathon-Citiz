@@ -116,6 +116,9 @@ g["region"] = g.region.fillna(""); g["cat"] = g.aire.map(lambda a: "Zone rurale"
 pop_reg = g.groupby("region").population.sum(); pop_regcat = g.groupby(["region", "cat"]).population.sum()
 POP_TOT = float(g.population.sum()); print("population totale", POP_TOT, pop_cat)
 
+def wq(v, w, p):
+    i = np.argsort(v); c = np.cumsum(np.asarray(w)[i]); return float(np.asarray(v)[i][np.searchsorted(c, p / 100 * c[-1])])
+bbw = lambda d: [round(wq(d.lat, d.habitants, 3) - .015, 3), round(wq(d.lon, d.habitants, 3) - .02, 3), round(wq(d.lat, d.habitants, 97) + .015, 3), round(wq(d.lon, d.habitants, 97) + .02, 3)]
 # chiffres clés par zone
 def kp(d, nst, tot=None):
     h = d.habitants.sum()
@@ -127,7 +130,7 @@ for cat in ["Métropole", "Grande ville", "Ville moyenne", "Zone rurale"]:
 for a, d in df.groupby("aire"):
     if a == "Commune hors attraction des villes": continue
     q = lambda s, p: float(np.percentile(s, p))
-    zones[a] = {"cat": d.categorie.iloc[0], "k": kp(d, ((st.aire == a) & (st.a_venir == 0)).sum(), pop_aire.get(a)), "bbox": [round(q(d.lat, 1) - .02, 3), round(q(d.lon, 1) - .02, 3), round(q(d.lat, 99) + .02, 3), round(q(d.lon, 99) + .02, 3)], "pop": int(pop_aire.get(a, d.habitants.sum()))}
+    zones[a] = {"cat": d.categorie.iloc[0], "k": kp(d, ((st.aire == a) & (st.a_venir == 0)).sum(), pop_aire.get(a)), "bbox": bbw(d), "pop": int(pop_aire.get(a, d.habitants.sum()))}
 bb = lambda d: [round(float(np.percentile(d.lat, 1)) - .02, 3), round(float(np.percentile(d.lon, 1)) - .02, 3), round(float(np.percentile(d.lat, 99)) + .02, 3), round(float(np.percentile(d.lon, 99)) + .02, 3)]
 for code, nom in REGIONS:
     dr = df[df.region == code]
