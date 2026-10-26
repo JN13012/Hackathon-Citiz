@@ -23,6 +23,9 @@ df = pd.concat([pd.read_csv(f, dtype={"region": str}) for f in sorted(D.glob("ac
 df["categorie"] = pd.cut(df.pop_aire, [-1, 49999, 249999, 999999, 1e12], labels=["Zone rurale", "Ville moyenne", "Grande ville", "Métropole"]).astype(str)
 df.loc[df.aire == "Commune hors attraction des villes", "categorie"] = "Zone rurale"
 df["nb"] = df[["n_bus", "n_tram_metro", "n_train", "n_velo", "n_autopartage", "n_citiz"]].sum(axis=1)
+REGIONS = [["11", "Île-de-France"], ["24", "Centre-Val de Loire"], ["27", "Bourgogne-Franche-Comté"], ["28", "Normandie"], ["32", "Hauts-de-France"], ["44", "Grand Est"], ["52", "Pays de la Loire"],
+           ["53", "Bretagne"], ["75", "Nouvelle-Aquitaine"], ["76", "Occitanie"], ["84", "Auvergne-Rhône-Alpes"], ["93", "Provence-Alpes-Côte d'Azur"], ["94", "Corse"]]
+RIDX = {c: i for i, (c, _) in enumerate(REGIONS)}; df["ri"] = df.region.map(RIDX).astype(int)
 print("carreaux", len(df))
 
 def overlay(d, nom, larg_max, facteur=1.0):
@@ -48,8 +51,30 @@ def overlay(d, nom, larg_max, facteur=1.0):
     return [round(la0, 4), round(lon0, 4), round(la1, 4), round(lon1, 4)]
 
 import os
+CATS = {"Métropole": "M", "Grande ville": "G", "Ville moyenne": "V", "Zone rurale": "R"}
+if os.environ.get("BESOIN"):    # couche « besoin » de l'outil Où ouvrir : habitants sans aucune option à 5 min, une seule teinte
+    r = os.environ["BESOIN"]; d = df[df.region == r]
+    marge = max(0.02, 0.03 * max(d.lon.max() - d.lon.min(), d.lat.max() - d.lat.min()))
+    lon0, lon1, la0, la1 = d.lon.min() - marge, d.lon.max() + marge, d.lat.min() - marge, d.lat.max() + marge
+    m0, m1 = merc(la0), merc(la1); grand = max(lon1 - lon0, m1 - m0)
+    W, H = int(1800 * (lon1 - lon0) / grand), int(1800 * (m1 - m0) / grand)
+    px_m = (lon1 - lon0) / W * 111320 * np.cos(np.radians(d.lat.mean())); sg = max(2.0, 1100 / px_m)
+    ix = np.minimum(((d.lon - lon0) / (lon1 - lon0) * W).astype(int), W - 1).to_numpy(); iy = np.minimum(((m1 - merc(d.lat)) / (m1 - m0) * H).astype(int), H - 1).to_numpy()
+    num = np.zeros((H, W)); np.add.at(num, (iy, ix), (d.habitants * (d.nb == 0)).to_numpy()); gz = gauss(num, sg)
+    t = np.clip(gz / np.percentile(gz[gz > 1e-9], 97), 0, 1) ** 0.8
+    img = np.dstack([np.full((H, W), 40), np.full((H, W), 28), np.full((H, W), 70), t * 150]).astype(np.uint8)
+    Image.fromarray(img, "RGBA").save(OUT / f"besoin_r{r}.webp", quality=85, method=4)
+    (OUT / "besoin.js").write_text("const BESOIN=" + json.dumps({r: [round(la0, 4), round(lon0, 4), round(la1, 4), round(lon1, 4)]}) + ";\n"); print("besoin ok", W, H); sys.exit(0)
+if os.environ.get("CAT"):       # surcouches d'une seule catégorie (France + régions), noms suffixés
+    c = os.environ["CAT"]; k = CATS[c]; d0 = df[df.categorie == c]; b = {f"france_{k}": overlay(d0, f"france_{k}", 2600)}
+    for r, d in d0.groupby("region"):
+        b[f"r{r}_{k}"] = overlay(d, f"r{r}_{k}", 1800)
+    (OUT / f"bornes_{k}.json").write_text(json.dumps(b)); print("catégorie", c, "ok"); sys.exit(0)
 if os.environ.get("SANS_IMAGES"):
     over = json.loads(re.search(r"SURCOUCHES=(\{.*?\});", (OUT / "donnees.js").read_text(encoding="utf-8")).group(1))
+    over = {k: v for k, v in over.items() if "_" not in k}
+    for k in CATS.values():
+        over.update(json.loads((OUT / f"bornes_{k}.json").read_text()))
 else:
     over = {"france": overlay(df, "france", 2600)}
     for r, d in df.groupby("region"):
@@ -60,14 +85,17 @@ o = pd.read_csv(D / "offre_france.csv")
 LIB = {"bus": "b", "autre": "b", "trolleybus": "b", "tram": "t", "metro": "m", "train": "g", "velo": "v", "autopartage": "a", "funiculaire": "c", "cable_car": "c", "telepherique": "c", "ferry": "c"}
 o = o[o.type.isin(LIB)]
 o["c"] = o.type.map(LIB); o["p"] = o.population_desservie.fillna(0).round().astype(int)
-pts = {c: np.c_[(o[o.c == c].lon * 1e4).round().astype(int), (o[o.c == c].lat * 1e4).round().astype(int), o[o.c == c].p].ravel().tolist() for c in "btmgvac"}
+_xy = lambda lon, lat: np.c_[np.asarray(lon) * 111320 * np.cos(np.radians(45.3)), np.asarray(lat) * 110540]
+_t0 = cKDTree(_xy(df.lon, df.lat)); _cat_idx = df.categorie.map({"Métropole": 0, "Grande ville": 1, "Ville moyenne": 2, "Zone rurale": 3}).to_numpy()
+_q = _t0.query(_xy(o.lon, o.lat))[1]; o["ci"] = _cat_idx[_q]; o["ri"] = df.ri.to_numpy()[_q]
+pts = {c: np.c_[(o[o.c == c].lon * 1e4).round().astype(int), (o[o.c == c].lat * 1e4).round().astype(int), o[o.c == c].p, o[o.c == c].ci, o[o.c == c].ri].ravel().tolist() for c in "btmgvac"}
 
 # stations Citiz
 st = pd.read_csv(D / "stations_citiz_france.csv"); st["commune"] = st.commune.fillna("")
 xy = lambda lon, lat: np.c_[np.asarray(lon) * 111320 * np.cos(np.radians(45.3)), np.asarray(lat) * 110540]
 tree = cKDTree(xy(df.lon, df.lat)); st["k"] = tree.query(xy(st.lon, st.lat))[1]
-st["aire"] = df.aire.to_numpy()[st.k]; st["cat"] = df.categorie.to_numpy()[st.k]
-stations = [[round(r.lon, 5), round(r.lat, 5), r.nom, r.commune, int(r.virtuelle), int(r.vehicules), int(r.a_venir)] for r in st.itertuples()]
+st["ri"] = df.ri.to_numpy()[st.k]; st["aire"] = df.aire.to_numpy()[st.k]; st["cat"] = df.categorie.to_numpy()[st.k]
+stations = [[round(r.lon, 5), round(r.lat, 5), r.nom, r.commune, int(r.virtuelle), int(r.vehicules), int(r.a_venir), ["Métropole", "Grande ville", "Ville moyenne", "Zone rurale"].index(r.cat), int(r.ri)] for r in st.itertuples()]
 
 # candidats : 5 par aire d'au moins 50 000 habitants (réseau piéton)
 c = pd.concat([pd.read_csv(f) for f in sorted(D.glob("couverture_pieton_*.csv"))])
@@ -92,13 +120,20 @@ import pyarrow.parquet as pq
 g = pq.read_table("/mnt/project-files/gold_candidates.parquet", columns=["population", "code_commune"]).to_pandas()
 g["code"] = g.code_commune.map(lambda c: "75056" if c.startswith("751") and len(c) == 5 and c != "75056" else "69123" if c.startswith("6938") else "13055" if c.startswith("132") and len(c) == 5 else c)
 com = pd.read_csv(D / "communes_france.csv", dtype=str)
-g = g.merge(com[["code", "aire"]], on="code", how="left"); g["aire"] = g.aire.fillna("Commune hors attraction des villes")
+g = g.merge(com[["code", "aire", "region"]], on="code", how="left"); g["aire"] = g.aire.fillna("Commune hors attraction des villes")
 pop_aire = g.groupby("aire").population.sum()
 cat_aire = lambda p: "Métropole" if p >= 1e6 else "Grande ville" if p >= 250000 else "Ville moyenne" if p >= 50000 else "Zone rurale"
 pop_cat = {c: 0.0 for c in ["Métropole", "Grande ville", "Ville moyenne", "Zone rurale"]}
 for a, p in pop_aire.items(): pop_cat["Zone rurale" if a == "Commune hors attraction des villes" else cat_aire(p)] += p
+g["region"] = g.region.fillna(""); g["cat"] = g.aire.map(lambda a: "Zone rurale" if a == "Commune hors attraction des villes" else cat_aire(pop_aire.get(a, 0)))
+pop_reg = g.groupby("region").population.sum(); pop_regcat = g.groupby(["region", "cat"]).population.sum()
 POP_TOT = float(g.population.sum()); print("population totale", POP_TOT, pop_cat)
 
+def wq(v, w, p):
+    i = np.argsort(v); c = np.cumsum(np.asarray(w)[i]); return float(np.asarray(v)[i][np.searchsorted(c, p / 100 * c[-1])])
+def bbw(d):
+    la0, la1, lo0, lo1 = wq(d.lat, d.habitants, 10), wq(d.lat, d.habitants, 90), wq(d.lon, d.habitants, 10), wq(d.lon, d.habitants, 90)
+    pa, po = max(.01, .45 * (la1 - la0)), max(.015, .45 * (lo1 - lo0)); return [round(la0 - pa, 3), round(lo0 - po, 3), round(la1 + pa, 3), round(lo1 + po, 3)]
 # chiffres clés par zone
 def kp(d, nst, tot=None):
     h = d.habitants.sum()
@@ -110,7 +145,17 @@ for cat in ["Métropole", "Grande ville", "Ville moyenne", "Zone rurale"]:
 for a, d in df.groupby("aire"):
     if a == "Commune hors attraction des villes": continue
     q = lambda s, p: float(np.percentile(s, p))
-    zones[a] = {"cat": d.categorie.iloc[0], "k": kp(d, ((st.aire == a) & (st.a_venir == 0)).sum(), pop_aire.get(a)), "bbox": [round(q(d.lat, 1) - .02, 3), round(q(d.lon, 1) - .02, 3), round(q(d.lat, 99) + .02, 3), round(q(d.lon, 99) + .02, 3)], "pop": int(pop_aire.get(a, d.habitants.sum()))}
+    zones[a] = {"cat": d.categorie.iloc[0], "k": kp(d, ((st.aire == a) & (st.a_venir == 0)).sum(), pop_aire.get(a)), "bbox": bbw(d), "pop": int(pop_aire.get(a, d.habitants.sum()))}
+bb = lambda d: [round(float(np.percentile(d.lat, 1)) - .02, 3), round(float(np.percentile(d.lon, 1)) - .02, 3), round(float(np.percentile(d.lat, 99)) + .02, 3), round(float(np.percentile(d.lon, 99)) + .02, 3)]
+for code, nom in REGIONS:
+    dr = df[df.region == code]
+    zones["R" + code] = {"cat": "", "k": kp(dr, ((st.ri == RIDX[code]) & (st.a_venir == 0)).sum(), pop_reg.get(code)), "bbox": bb(dr), "nom": nom}
+    for cat in CATS:
+        d = dr[dr.categorie == cat]
+        if len(d) < 30: continue
+        zones[f"R{code}|{cat}"] = {"cat": "", "k": kp(d, ((st.ri == RIDX[code]) & (st.cat == cat) & (st.a_venir == 0)).sum(), pop_regcat.get((code, cat))), "bbox": bb(d)}
+for a in list(zones):
+    if "cat" in zones[a] and zones[a]["cat"] and a in df.aire.values: zones[a]["reg"] = str(df[df.aire == a].region.mode().iloc[0])
 (OUT / "donnees.js").write_text("const SURCOUCHES=" + json.dumps(over) + ";\nconst ARRETS=" + json.dumps(pts, separators=(",", ":")) + ";\nconst STATIONS=" + json.dumps(stations, ensure_ascii=False, separators=(",", ":")) +
-    ";\nconst CANDIDATS=" + json.dumps(cands, ensure_ascii=False, separators=(",", ":")) + ";\nconst ZONES=" + json.dumps(zones, ensure_ascii=False, separators=(",", ":")) + ";\n", encoding="utf-8")
+    ";\nconst CANDIDATS=" + json.dumps(cands, ensure_ascii=False, separators=(",", ":")) + ";\nconst REGIONS=" + json.dumps(REGIONS, ensure_ascii=False) + ";\nconst ZONES=" + json.dumps(zones, ensure_ascii=False, separators=(",", ":")) + ";\n", encoding="utf-8")
 print("donnees.js", round((OUT / "donnees.js").stat().st_size / 1e6, 2), "Mo")
