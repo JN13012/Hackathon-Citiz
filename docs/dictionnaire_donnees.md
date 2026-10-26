@@ -6,7 +6,7 @@ Conventions : colonnes en `snake_case`, géométries en Lambert 93 (EPSG:2154), 
 
 | Table | Rôle | Une ligne = | Colonnes | Manquants |
 |---|---|---|---|---|
-| `arrets` | 1 | un arrêt physique unique | `arret_id`, `nom`, `mode`, `nb_passages_jour`, `reseau`, `geometry` | aucune valeur manquante ; `nb_passages_jour` = 0 pour 6,8 % des arrêts (pas de service le jour de référence) ; mode « autre » pour 198 arrêts |
+| `arrets` | 1 | un arrêt physique unique | `arret_id`, `nom`, `mode`, `nb_passages_jour`, `reseau`, `geometry` | aucune valeur manquante ; ARA : `nb_passages_jour` = 0 pour 6,8 % des arrêts (pas de service le jour de référence) et mode « autre » pour 198 arrêts ; France : 7,4 % et 6 162 (voir « Territoire France ») |
 | `reseau_pieton` | 2 | un nœud ou un arc orienté ; pilote Grenoble et ARA en 835 tuiles avec marge | nœuds : `noeud_id`, `composante_id` (locale à la tuile), `dans_territoire` (pilote) ou `dans_tuile` (ARA), `dans_zone_marge`, `geometry` · tronçons : `de`, `vers`, `cle`, `longueur_m`, `temps_pieton_s`, tags `*_json`, `geometry` ; ARA ajoute `osmid`, `segment_osm`, `direction_osm` (1 et -1 présents pour chaque segment) | tags OSM absents = texte JSON `null` ; 835 tuiles contrôlées dans `data/silver/reseau_ara_bidirectionnel/` ; les marges contiennent des copies à dédupliquer pour les effectifs régionaux |
 | `contours` | 2 | une commune, un EPCI ou un IRIS (ARA : 4 025 communes, 172 EPCI, 5 407 IRIS) | `id_zone`, `code_insee`, `code_arrondissement_municipal`, `code_iris`, `code_epci`, `nom`, `niveau`, `geometry` | par construction, selon le niveau : `code_insee` vide pour les EPCI ; `code_iris` vide hors IRIS ; `code_epci` vide hors EPCI ; `code_arrondissement_municipal` rempli seulement pour les 185 IRIS de Lyon |
 | `territoire` | 2 | le territoire entier (une ligne : union des communes retenues, sans marge ni simplification) | `nom`, `geometry` | aucun ; ARA : 70 797 km² |
@@ -27,7 +27,7 @@ Conventions : colonnes en `snake_case`, géométries en Lambert 93 (EPSG:2154), 
 
 | Table | Rôle | Contenu | Échéance |
 |---|---|---|---|
-| `gold_offre` | 1 | un point par arrêt ou station : `offre_id`, `source` (`arrets` ou `stations_partagees`), `type` (bus, tram, métro, vélo, Citiz, autopartage…), `nom`, `operateur`, `valeur` (passages/jour pour un arrêt, capacité pour une station), `unite`, `geometry`, `code_commune` (code INSEE des stations partagées, vide pour les arrêts sans ce champ) ; `nom` conserve le libellé source ou un identifiant de secours ; `valeur` vide pour 5 stations sans capacité | mardi 10 h 30 |
+| `gold_offre` | 1 | un point par arrêt ou station : `offre_id`, `source` (`arrets` ou `stations_partagees`), `type` (bus, tram, métro, vélo, Citiz, autopartage…), `nom`, `operateur`, `valeur` (passages/jour pour un arrêt, capacité pour une station), `unite`, `geometry`, `code_commune` (code INSEE des stations partagées, vide pour les arrêts sans ce champ) ; `nom` conserve le libellé source ou un identifiant de secours ; `valeur` vide pour 5 stations sans capacité (ARA) ; France : `valeur` vide pour 114 stations sans capacité et `code_commune` vide pour tous les arrêts | mardi 10 h 30 |
 | `gold_candidates` | 1 | centroïdes des carreaux peuplés (312 143), avec `id_carreau`, `population`, `code_commune`, `faible_population`, `part_menages_sans_voiture` | mardi 11 h |
 | `gold_isochrones` | 2 | cible : polygone de 5 min à pied par carreau (`id_carreau`) ; pilote actuel : origines de type `arret` dans Grenoble, dossier dédié `isochrones_grenoble_arrets` ; tampon cartographique de chemins routés | mardi 11 h |
 | `gold_o1` | 2 | ARA : options accessibles à 5 min par habitant, par groupe de carreaux d'au moins 20 habitants (105 936 groupes, dont 102 901 complets et 3 035 partiels), réseau piéton régional ; dossier `accessibilite_ara/resultats/publics/` (copie dans `data/gold/`) ; détail : [accessibilite_ara.md](accessibilite_ara.md). Le pilote Grenoble reste dans `accessibilite_grenoble` | mardi 12 h 30 |
@@ -39,6 +39,28 @@ Conventions : colonnes en `snake_case`, géométries en Lambert 93 (EPSG:2154), 
 | `gold_courbe_budget` | 4 | habitants gagnés selon le budget annuel, par scénario de coût et réglage d'équité, avec le nombre d'équipements par type et la part en petites communes | mercredi 10 h |
 | `gold_scores` | 3 | usage potentiel prédit par candidat et par type | mardi 16 h 30 |
 
+## Territoire France (simulation)
+
+Auvergne-Rhône-Alpes (ARA) est le cas concret, vérifié de bout en bout. La France métropolitaine, Corse comprise, est une **simulation** qui montre que la méthode se généralise : mêmes colonnes, mêmes règles, tables dans `data/france/` (jamais mêlées à `data/silver` et `data/gold`). Chaîne et choix : [donnees_france.md](donnees_france.md).
+
+| Table | ARA (concret) | France (simulation) |
+|---|---|---|
+| `arrets` | 17 178 arrêts, 18 réseaux (filtrés sur les contours) | 197 239 arrêts, 452 réseaux |
+| `gold_offre` | 18 735 points | 204 934 points (197 239 arrêts + 7 695 stations) |
+| `gold_candidates` | 312 143 | 2 298 582 |
+| arrêts à 0 passage | 6,8 % | 7,4 % |
+
+**Arrêts France** (`silver/arrets`, contrôle qualité du 22/10/2026 : 0 problème)
+- Modes : bus 187 378 · autre 6 162 · tram 1 414 · train 1 347 · métro 599 · trolleybus 170 · ferry 93 · téléphérique 63 · funiculaire 11 · cable_car 2. Le mode `train` n'existe pas en ARA.
+- Aucun doublon d'arrêt de même nom à moins de 50 m ; tous les points sont dans le cadre France métropolitaine et dans les contours ; `arret_id` unique ; aucune valeur manquante dans la table.
+- 19 réseaux GTFS en échec (sources hors ligne, dont cars et TER Hauts-de-France ; navettes saisonnières sans calendrier), listés dans `silver/arrets_qc.txt` : l'offre y est sous-estimée.
+- Les jeux « Agrégat des réseaux… » sont écartés (fréquences comptées deux fois) ; un arrêt présent dans deux fichiers d'un même réseau est compté une fois.
+- `nb_passages_jour` vient du mardi le plus chargé de chaque réseau : les jours de référence diffèrent d'un réseau à l'autre.
+
+**Limites**
+- Les cars et TER manquants en France, et en ARA les cars du Rhône, de l'Isère, de la Loire, de l'Ain, de la Drôme, de la Haute-Savoie et du Puy-de-Dôme, ne sont pas dans `arrets`.
+- Le GTFS de Valence (Citéa) a expiré : son jour de référence est le 19/05/2026.
+- Filosofi couvre environ 75 % de la population corse ; la Corse n'a aucune station partagée.
 ## Détail · `carreaux_socio` (rôle 3)
 
 312 143 carreaux habités, 7 703 556 habitants (Auvergne-Rhône-Alpes). Clé : `id_carreau`.

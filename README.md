@@ -2,8 +2,9 @@
 
 Outil d'aide à la décision : où implanter de nouvelles stations d'autopartage Citiz (et, plus largement, où ajouter un arrêt de bus ou une station vélo) pour toucher le plus d'habitants au moindre coût.
 
-- **Territoire (D1)** : Auvergne-Rhône-Alpes (code région 84), avec Lyon comme grande ville (choix d'équipe du 19/10, EDA `eda-citiz/`).
-- **Période** : lundi 19 au mercredi 21 octobre 2026, soutenance mercredi après-midi.
+- **Territoire (D1)** : Auvergne-Rhône-Alpes (code région 84), avec Lyon comme grande ville (choix d'équipe du 19/10, EDA `eda-citiz/`). C'est le **cas concret**, vérifié de bout en bout.
+- **Simulation** : la France métropolitaine (Corse comprise) montre que la méthode se généralise : mêmes tables et mêmes règles, écrites dans `data/france/` (voir [docs/donnees_france.md](docs/donnees_france.md)).
+- **Période** : hackathon du lundi 19 au mercredi 21 octobre 2026, soutenance vendredi 23 octobre au matin.
 - **Référence unique** : le PDF du sujet (`Hackathon Mobility`, Epitech v0.4.0).
 
 ## Objectifs
@@ -22,7 +23,7 @@ Outil d'aide à la décision : où implanter de nouvelles stations d'autopartage
 | 2. Géomatique | | `reseau_pieton`, `contours`, `gold_isochrones`, `gold_o1`, `gold_o2`, `gold_couverture` |
 | 3. Data scientist | | `carreaux_socio`, `gold_features`, `gold_scores`, tableau d'évaluation |
 | 4. Optimisation et coûts | | `stations_partagees`, `projections`, `couts`, liste priorisée |
-| 5. Restitution et pilotage | | `ratios_co2`, Power BI, slides, démo de secours |
+| 5. Restitution et pilotage | | `ratios_co2`, carte HTML (`eda-citiz/carte_html/`), slides, démo de secours |
 
 ## Structure du dépôt
 
@@ -48,11 +49,59 @@ docs/            dictionnaire de données
 
 ## Installation
 
+### 1. Environnement Python
+
 ```bash
 python -m venv .venv
 # Windows : .venv\Scripts\activate    |    Linux/Mac : source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+Python 3.12 recommandé (celui de l'image Docker).
+
+### 2. Données
+
+Les dossiers `data/` ne sont pas dans Git : il faut les produire ou les récupérer.
+
+| Besoin | Comment |
+|---|---|
+| Données France (simulation) | Dézipper l'archive d'équipe à la racine du dépôt : les fichiers arrivent dans `data/france/silver/` et `data/france/gold/`. Vérifier avec `MANIFESTE_SHA256.txt`. |
+| Données ARA (cas concret) | `python scripts/run_all.py` (territoire par défaut : `ara`). |
+| GTFS TCL (Lyon) | Compte data.grandlyon.com requis : voir « GTFS TCL (Lyon) » dans la section Docker ci-dessous (fichier `data/bronze/gtfs/tcl_lyon.zip`). |
+
+Ne **pas** relancer `python scripts/run_all.py --territoire france` : le calcul complet prend 5 à 9 h, environ 10 Go de téléchargements et 40 Go de disque.
+
+### 3. Contrôle qualité
+
+```bash
+python scripts/controle_qualite.py                      # ARA
+TERRITOIRE=france python scripts/controle_qualite.py    # France (PowerShell : $env:TERRITOIRE = "france")
+```
+
+Résultat attendu : `TOUT EST OK (0 problème(s))`. Rapports : `data/gold/controle_qualite.txt` (ARA) et `data/france/gold/controle_qualite.txt` (France).
+
+### 4. Carte d'accès (site HTML)
+
+La carte de restitution est un site HTML autonome, versionné dans `eda-citiz/carte_html/` : aucun serveur ni installation supplémentaire, il suffit d'ouvrir le fichier dans un navigateur.
+
+```bash
+# Windows (PowerShell)
+start eda-citiz\carte_html\index.html
+```
+
+Si le navigateur n'affiche pas les couches de chaleur (chargement bloqué en ouverture directe), servir le dossier en local puis ouvrir http://localhost:8000 :
+
+```bash
+python -m http.server 8000 --directory eda-citiz/carte_html
+```
+
+Pour régénérer le site à partir des CSV d'accès (`acces_france_<région>.csv`, `offre_france.csv`, `couverture_pieton_*.csv`… dans `eda-citiz/donnees/`) :
+
+```bash
+python eda-citiz/dashboard/build_html.py eda-citiz/donnees eda-citiz/carte_html
+```
+
+Les CSV sont produits par les scripts de `eda-citiz/dashboard/` (`calc_france.py`, `decouper_france.py`, `enrichir_france.py`) : voir `eda-citiz/dashboard/LISEZMOI.md`. L'ancienne appli Streamlit (`app.py`, `app_region.py`, `app_grenoble.py`) n'est plus utilisée pour la soutenance.
 
 ## Exécution avec Docker
 
@@ -102,6 +151,8 @@ relancer les téléchargements :
 docker compose run --rm pipeline python scripts/build_gold.py
 docker compose run --rm pipeline python scripts/controle_qualite.py
 ```
+
+**Limite connue (téléchargement INSEE).** L'étape `carreaux_socio` télécharge le fichier BPE 2025 (plus de 100 Mo). Si la connexion est coupée, le fichier reste incomplet (erreur `IncompleteRead`, puis `Parquet magic bytes not found`). Supprimer alors `data/bronze/insee/bpe_2025.parquet*` et relancer, ou y déposer le fichier téléchargé à la main sous le nom `bpe_2025.parquet`. L'étape `arrets` a été vérifiée dans Docker (17 254 arrêts avec Lyon, 0 doublon).
 
 Voir [le fonctionnement du nettoyage et la restauration des transports](docs/nettoyage_et_protection_donnees.md).
 
@@ -177,6 +228,6 @@ pour utiliser le trousseau du système.
 | Mardi 12 h 30 | La carte O1 s'affiche |
 | Mardi 17 h 45 | Démo complète v1 |
 | Mercredi 10 h | Gel du code, présentation croisée des briques |
-| Mercredi après-midi | Soutenance |
+| Vendredi 23 octobre, matin | Soutenance |
 
 Sources : voir `SOURCES.md`.
