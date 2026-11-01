@@ -1,5 +1,7 @@
 # Hackathon Mobility × Citiz
 
+> **2nd place** at the hackathon, built in a team of 5. This is a public copy of our team repository from Epitech, with the full history. My part: geospatial data engineering. The code and documents are in French.
+
 Outil d'aide à la décision : où implanter de nouvelles stations d'autopartage Citiz (et, plus largement, où ajouter un arrêt de bus ou une station vélo) pour toucher le plus d'habitants au moindre coût.
 
 - **Territoire (D1)** : Auvergne-Rhône-Alpes (code région 84), avec Lyon comme grande ville (choix d'équipe du 19/10, EDA `eda-citiz/`). C'est le **cas concret**, vérifié de bout en bout.
